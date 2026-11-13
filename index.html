@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Job Analysis</title>
+<style>
+:root{--navy:#1f3864;--ink:#1d2433;--muted:#5b6475;--line:#d5dbe6;--bg:#f5f7fa;--card:#fff;--soft:#e8edf5;--good:#1b6e45;--goodbg:#e2f3ea;--bad:#9b2c2c;--badbg:#fbe9e9;--warn:#8a5a00;--warnbg:#fdf2d8}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header.top{background:var(--navy);color:#fff;padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.brand strong{font-size:17px}.brand span{opacity:.8;margin-left:10px;font-size:14px}
+.tools{display:flex;flex-wrap:wrap;gap:6px}
+button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:6px;cursor:pointer}
+button:hover{background:var(--soft)}
+button.primary{background:var(--navy);color:#fff;border-color:var(--navy)}button.primary:hover{background:#2c4c85}
+button.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.45)}button.ghost:hover{background:rgba(255,255,255,.12)}
+button.del{color:var(--bad);border-color:transparent;background:transparent;padding:4px 8px}
+button.small{padding:3px 9px;font-size:13px}
+nav{background:#fff;border-bottom:1px solid var(--line);padding:0 12px;display:flex;flex-wrap:wrap}
+nav button{border:0;border-bottom:3px solid transparent;border-radius:0;padding:11px 12px;background:none;color:var(--muted)}
+nav button.on{color:var(--navy);border-bottom-color:var(--navy);font-weight:600}
+nav button .n{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:50%;background:var(--soft);font-size:12px;margin-right:6px;color:var(--navy)}
+main{max-width:1080px;margin:0 auto;padding:22px 20px 60px}
+h1{font-size:22px;margin:0 0 4px;color:var(--navy)}h2{font-size:17px;margin:26px 0 8px;color:var(--navy)}
+p.lead{color:var(--muted);margin:0 0 16px;max-width:75ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin:14px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}
+label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:3px}
+input[type=text],input[type=number],input[type=date],textarea,select{font:inherit;width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+textarea{resize:vertical;min-height:38px}
+table{border-collapse:collapse;width:100%;background:#fff}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--navy);color:#fff;font-size:13px;font-weight:600}
+td.num,th.num{text-align:center;width:44px;white-space:nowrap}
+td.c,th.c{text-align:center}
+.scroll{overflow-x:auto}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600;white-space:nowrap}
+.b-good{background:var(--goodbg);color:var(--good)}.b-bad{background:var(--badbg);color:var(--bad)}.b-warn{background:var(--warnbg);color:var(--warn)}.b-mute{background:var(--soft);color:var(--muted)}
+.hint{font-size:13px;color:var(--muted)}
+.scales{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;font-size:13px}
+.scales div{background:var(--soft);border-radius:6px;padding:8px 10px}.scales b{display:block;color:var(--navy)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.banner{background:var(--warnbg);color:var(--warn);border:1px solid #ecd79b;border-radius:8px;padding:10px 14px;margin-bottom:14px}
+td.linked{background:var(--goodbg);font-weight:600}td.unlinked{color:var(--muted)}
+.matrix select{min-width:52px;padding:4px}
+.matrix th small{font-weight:400;display:block;max-width:110px}
+#modal{position:fixed;inset:0;background:rgba(20,28,45,.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:9}
+#modal.show{display:flex}#modal .box{background:#fff;border-radius:10px;padding:20px;max-width:640px;width:100%;max-height:90vh;overflow:auto}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 16px;border-radius:20px;display:none;z-index:10}
+footer{max-width:1080px;margin:0 auto;padding:0 20px 30px;font-size:12px;color:var(--muted)}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:40px}.sign div{border-top:1px solid #000;padding-top:4px;font-size:13px}
+.only-print{display:none}
+@media print{.no-print{display:none!important}.only-print{display:block}body{background:#fff;font-size:11pt}main{max-width:none;padding:0}.card{border:0;padding:0}
+ th{background:#ddd!important;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}input,select,textarea{border:0!important;padding:0!important;appearance:none;-webkit-appearance:none}h2{break-after:avoid}tr{break-inside:avoid}}
+</style>
+</head>
+<body>
+<header class="top no-print">
+  <div class="brand"><strong>Open Job Analysis</strong><span id="jobName"></span></div>
+  <div class="tools">
+    <button class="ghost" data-act="saveFile">Save file</button>
+    <button class="ghost" data-act="openFile">Open file</button>
+    <button class="ghost" data-act="example">Load example</button>
+    <button class="ghost" data-act="newProject">New</button>
+  </div>
+</header>
+<nav id="nav" class="no-print"></nav>
+<main id="main"></main>
+<footer class="no-print">Free and open source (MIT). Method adapted from the U.S. Office of Personnel Management, <i>Delegated Examining Operations Handbook</i>, Appendix D (public domain). Your data stays in this browser and in the files you save; nothing is sent anywhere. This tool supports, but does not replace, professional or legal advice.</footer>
+<input type="file" id="file" accept=".json,application/json" hidden>
+<div id="modal"><div class="box" id="modalBox"></div></div>
+<div id="toast"></div>
+<script>
+/*CORE-START*/
+var Core = (function () {
+  var SCALES = {
+    taskImp: { label: 'Importance', q: 'How important is this task to the job?', opts: ['Not performed', 'Not important', 'Somewhat important', 'Important', 'Very important', 'Extremely important'] },
+    taskFreq: { label: 'Frequency', q: 'How often is the task performed?', opts: ['Not performed', 'Every few months to yearly', 'Every few weeks to monthly', 'Every few days to weekly', 'Every few hours to daily', 'Hourly to many times each hour'] },
+    compImp: { label: 'Importance', q: 'How important is this competency for effective job performance?', opts: ['Not applicable', 'Not important', 'Somewhat important', 'Important', 'Very important', 'Extremely important'] },
+    compEntry: { label: 'Need at entry', q: 'When is this competency needed for effective job performance?', opts: ['Not applicable', 'Needed the first day', 'Must be acquired within the first 3 months', 'Must be acquired within the first 4–6 months', 'Must be acquired after the first 6 months'] },
+    compDV: { label: 'Distinguishing value', q: 'How valuable is this competency for distinguishing superior from barely acceptable employees?', opts: ['Not applicable', 'Not valuable', 'Somewhat valuable', 'Valuable', 'Very valuable', 'Extremely valuable'] },
+    link: { label: 'Linkage', q: 'How important is this competency for effective task performance?', opts: ['Not applicable', 'Not important', 'Somewhat important', 'Important', 'Very important', 'Extremely important'] }
+  };
+  var DEFAULT_CUTOFFS = { taskImp: 3, taskFreq: 3, compImp: 3, compEntry: 2, compDV: 3, link: 3 };
+  function rid() { return Math.random().toString(36).slice(2, 10); }
+  function blank() {
+    return { kind: 'oja-project', version: 1, id: rid(), job: { title: '', org: '', family: '', analyst: '', date: '', sources: '' },
+      tasks: [], competencies: [], raters: [], cutoffs: Object.assign({}, DEFAULT_CUTOFFS), decisions: {}, seq: 1 };
+  }
+  function normalize(p) {
+    var b = blank();
+    p = Object.assign(b, p || {});
+    p.job = Object.assign({ title: '', org: '', family: '', analyst: '', date: '', sources: '' }, p.job || {});
+    p.cutoffs = Object.assign({}, DEFAULT_CUTOFFS, p.cutoffs || {});
+    p.tasks = p.tasks || []; p.competencies = p.competencies || []; p.decisions = p.decisions || {};
+    p.raters = (p.raters || []).map(function (r) { r.t = r.t || {}; r.c = r.c || {}; r.l = r.l || {}; return r; });
+    return p;
+  }
+  function isNum(x) { return typeof x === 'number' && !isNaN(x); }
+  // Mean of ratings, ignoring 0 ("not performed" / "not applicable"). null when nothing to average.
+  function mean(vals) {
+    var v = vals.filter(function (x) { return isNum(x) && x > 0; });
+    if (!v.length) return null;
+    return v.reduce(function (a, b) { return a + b; }, 0) / v.length;
+  }
+  function taskResults(p) {
+    var c = p.cutoffs;
+    return p.tasks.map(function (t, i) {
+      var rs = p.raters.map(function (r) { return r.t && r.t[t.id]; }).filter(function (x) { return x && isNum(x.imp) && isNum(x.freq); });
+      var n = rs.length;
+      var np = rs.filter(function (x) { return x.imp === 0 || x.freq === 0; }).length;
+      var eliminated = n > 0 && np >= n / 2;
+      var imp = mean(rs.map(function (x) { return x.imp; })), freq = mean(rs.map(function (x) { return x.freq; }));
+      var critical = n > 0 && !eliminated && imp !== null && freq !== null && imp >= c.taskImp && freq >= c.taskFreq;
+      return { id: t.id, no: i + 1, text: t.text, source: t.source, n: n, notPerformed: np, eliminated: eliminated, imp: imp, freq: freq, critical: critical };
+    });
+  }
+  function compResults(p) {
+    var c = p.cutoffs;
+    return p.competencies.map(function (k, i) {
+      var rs = p.raters.map(function (r) { return r.c && r.c[k.id]; }).filter(function (x) { return x && isNum(x.imp) && isNum(x.entry) && isNum(x.dv); });
+      var n = rs.length;
+      var imp = mean(rs.map(function (x) { return x.imp; })), entry = mean(rs.map(function (x) { return x.entry; })), dv = mean(rs.map(function (x) { return x.dv; }));
+      var critical = n > 0 && imp !== null && entry !== null && imp >= c.compImp && entry <= c.compEntry;
+      var distinguishing = critical && dv !== null && dv >= c.compDV;
+      return { id: k.id, no: i + 1, name: k.name, definition: k.definition, source: k.source, n: n, imp: imp, entry: entry, dv: dv, critical: critical, distinguishing: distinguishing };
+    });
+  }
+  // Which tasks and competencies go into the linkage matrix. A rater file carries a frozen list.
+  function linkSets(p) {
+    if (p.raterMode) return { tasks: p.linkTasks || [], comps: p.linkComps || [] };
+    return { tasks: taskResults(p).filter(function (t) { return t.critical; }).map(function (t) { return t.id; }),
+             comps: compResults(p).filter(function (k) { return k.critical; }).map(function (k) { return k.id; }) };
+  }
+  function linkResults(p) {
+    var s = linkSets(p), cut = p.cutoffs.link, cells = {}, taskLinked = {}, compLinked = {}, rated = 0;
+    s.tasks.forEach(function (t) {
+      s.comps.forEach(function (k) {
+        var key = t + '|' + k;
+        var vals = p.raters.map(function (r) { return r.l && r.l[key]; }).filter(isNum);
+        var avg = mean(vals), linked = avg !== null && avg >= cut;
+        if (vals.length) rated++;
+        cells[key] = { n: vals.length, avg: avg, linked: linked };
+        if (linked) { taskLinked[t] = true; compLinked[k] = true; }
+      });
+    });
+    return { tasks: s.tasks, comps: s.comps, cells: cells, rated: rated, total: s.tasks.length * s.comps.length,
+      finalTasks: s.tasks.filter(function (t) { return taskLinked[t]; }), finalComps: s.comps.filter(function (k) { return compLinked[k]; }),
+      droppedTasks: s.tasks.filter(function (t) { return !taskLinked[t]; }), droppedComps: s.comps.filter(function (k) { return !compLinked[k]; }) };
+  }
+  // File a rater fills in: no other rater's scores, so ratings stay independent.
+  function raterPacket(p, raterId, round) {
+    var r = p.raters.filter(function (x) { return x.id === raterId; })[0];
+    var s = linkSets(p);
+    var q = JSON.parse(JSON.stringify(p));
+    q.raters = [JSON.parse(JSON.stringify(r))]; q.raterMode = true; q.round = round; q.decisions = {};
+    q.linkTasks = round === 2 ? s.tasks : []; q.linkComps = round === 2 ? s.comps : [];
+    return q;
+  }
+  function raterResponse(p) { return { kind: 'oja-response', projectId: p.id, round: p.round, rater: p.raters[0] }; }
+  function mergeResponse(p, resp) {
+    if (resp.projectId !== p.id) return 'This ratings file belongs to a different job analysis.';
+    var r = p.raters.filter(function (x) { return x.id === resp.rater.id; })[0];
+    if (!r) return 'The rater in this file is not in this job analysis.';
+    if (resp.round === 2) r.l = Object.assign({}, r.l, resp.rater.l || {});
+    else { r.t = resp.rater.t || {}; r.c = resp.rater.c || {}; }
+    return null;
+  }
+  return { SCALES: SCALES, DEFAULT_CUTOFFS: DEFAULT_CUTOFFS, rid: rid, blank: blank, normalize: normalize, mean: mean, taskResults: taskResults,
+    compResults: compResults, linkSets: linkSets, linkResults: linkResults, raterPacket: raterPacket, raterResponse: raterResponse, mergeResponse: mergeResponse };
+})();
+if (typeof module !== 'undefined') module.exports = Core;
+/*CORE-END*/
+
+/*EXAMPLE-START*/
+function exampleProject() {
+  var p = Core.blank();
+  p.job = { title: 'HR Assistant (example)', org: 'Example Co.', family: 'Human Resources', analyst: 'Your name', date: '', sources: 'Job description; performance standards; interviews with two job holders and their manager.' };
+  var T = [['Contacts others orally to obtain information.', 'Occupational study', 4, 4], ['Reads and understands nontechnical materials (e.g., letters, memoranda, electronic mail, simple instructions).', 'Occupational study', 4, 5],
+    ['Serves as primary point of contact for a specific subject area.', 'Occupational study', 3, 2], ['Interprets laws, regulations, policies, standards, or procedures to specific issues.', 'Job description', 5, 3],
+    ['Develops relationships with key individuals or groups.', 'Job description', 3, 2], ['Provides technical advice in subject matter area to others.', 'Levelling guide', 4, 3],
+    ['Collaborates with others or works on teams to accomplish work-related activities.', 'Levelling guide', 4, 4], ['Uses computer systems or applications to access, create, edit, print, send, retrieve, or manipulate data, files, or other information.', 'Levelling guide', 4, 5],
+    ['Discusses results, problems, plans, suggestions, terms, or conditions with others.', 'Subject matter experts', 3, 3], ['Uses addition, subtraction, division, or multiplication.', 'Subject matter experts', 2, 1],
+    ['Enters data or other information into computer.', 'Subject matter experts', 3, 4]];
+  var C = [['Reading', 'Understands and interprets written material, including rules, instructions and reports.', 'Occupational study', 4, 1, 2], ['Writing', 'Communicates information in a succinct and organized manner, using correct grammar, punctuation and spelling, for the intended audience.', 'Occupational study', 5, 1, 4],
+    ['Interpersonal Skills', 'Shows understanding, courtesy, tact and concern; relates well to different people.', 'Job description', 4, 2, 4], ['Oral Communication', 'Expresses information to individuals or groups effectively; listens to others.', 'Job description', 4, 1, 3],
+    ['Reasoning', 'Identifies rules, principles or relationships that explain facts or data; draws sound conclusions.', 'Levelling guide', 4, 2, 4], ['Decision Making', 'Makes sound, well-informed decisions and commits to action.', 'Levelling guide', 3, 3, 3],
+    ['Customer Service', 'Works with clients and customers to assess needs, provide information and resolve problems.', 'Levelling guide', 4, 2, 3], ['Arithmetic', 'Performs computations using whole numbers, fractions, decimals and percentages.', 'Subject matter experts', 2, 1, 1],
+    ['Mathematical Reasoning', 'Solves practical problems by choosing appropriately from a variety of mathematical techniques.', 'Subject matter experts', 2, 1, 2], ['Personnel and Human Resources', 'Knowledge of HR concepts, practices and rules, such as recruitment, pay and employee relations.', 'Subject matter experts', 4, 3, 4]];
+  var LINK = { '1|4': 5, '1|3': 4, '2|1': 5, '4|1': 4, '4|5': 5, '4|2': 4, '6|4': 4, '6|5': 4, '6|7': 4, '6|2': 4, '7|3': 5, '7|4': 4, '8|1': 3, '9|4': 5, '9|3': 4, '9|5': 3, '11|1': 3 };
+  T.forEach(function (t, i) { p.tasks.push({ id: 't' + (i + 1), text: t[0], source: t[1] }); });
+  C.forEach(function (c, i) { p.competencies.push({ id: 'c' + (i + 1), name: c[0], definition: c[1], source: c[2] }); });
+  function cl(x) { return Math.max(1, Math.min(5, x)); }
+  ['Job holder A', 'Job holder B', 'Line manager'].forEach(function (name, r) {
+    var R = { id: 'r' + (r + 1), name: name, title: r === 2 ? 'HR Manager' : 'HR Assistant', t: {}, c: {}, l: {} };
+    T.forEach(function (t, i) { var d = (i + r) % 3 === 0 ? 1 : ((i + r) % 5 === 0 ? -1 : 0); R.t['t' + (i + 1)] = { imp: cl(t[2] + d), freq: cl(t[3] + (r === 1 && i % 4 === 0 ? -1 : 0)) }; });
+    if (r > 0) R.t.t10 = { imp: 0, freq: 0 };
+    C.forEach(function (c, i) { var d = (i + r) % 4 === 0 ? 1 : 0; R.c['c' + (i + 1)] = { imp: cl(c[3] + d), entry: Math.min(4, c[4] + (r === 2 && i === 4 ? 1 : 0)), dv: cl(c[5] - (r === 1 && i % 3 === 0 ? 1 : 0)) }; });
+    p.raters.push(R);
+  });
+  var s = Core.linkSets(p);
+  p.raters.forEach(function (R, r) { s.tasks.forEach(function (t) { s.comps.forEach(function (k) { var base = LINK[t.slice(1) + '|' + k.slice(1)] || 2; R.l[t + '|' + k] = cl(base + ((Number(t.slice(1)) + Number(k.slice(1)) + r) % 4 === 0 ? -1 : 0)); }); }); });
+  p.seq = 20;
+  return p;
+}
+/*EXAMPLE-END*/
+
+if (typeof document !== 'undefined') (function () {
+  var KEY = 'open-job-analysis-v1', RKEY = KEY + '-rater', S = Core.SCALES;
+  var framed = false; try { framed = window.self !== window.top; } catch (e) { framed = true; }
+  var p = load() || Core.blank();
+  var state = { view: p.raterMode ? (p.round === 2 ? 'linkage' : 'ratings') : 'job', raterId: null };
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function fmt(x) { return x === null || x === undefined ? '–' : x.toFixed(2); }
+  // A rater file is kept apart from the analyst's own project, so opening one never overwrites it.
+  function store() { try { localStorage.setItem(p.raterMode ? RKEY : KEY, JSON.stringify(p)); if (!p.raterMode) localStorage.removeItem(RKEY); } catch (e) {} }
+  function load() { try { var s = localStorage.getItem(RKEY) || localStorage.getItem(KEY); return s ? Core.normalize(JSON.parse(s)) : null; } catch (e) { return null; } }
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(function () { t.style.display = 'none'; }, 2600); }
+  function modal(html) { $('modalBox').innerHTML = html; $('modal').classList.add('show'); }
+  function closeModal() { $('modal').classList.remove('show'); }
+  var pendingYes = null;
+  function confirmBox(msg, yes) { pendingYes = yes; modal('<p>' + esc(msg) + '</p><div class="row" style="justify-content:flex-end"><button data-act="closeModal">Cancel</button><button class="primary" data-act="confirmYes">Yes, continue</button></div>'); }
+  function slug(s) { return (s || 'job-analysis').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'job-analysis'; }
+  // Download a file; inside an embedded preview (where downloads are blocked) show the text to copy instead.
+  function exportFile(name, text, mime) {
+    if (framed) { modal('<h2 style="margin-top:0">' + esc(name) + '</h2><p class="hint">This preview cannot download files. Copy the text below and save it as <b>' + esc(name) + '</b>, or use the downloaded version of the app.</p><textarea id="exportText" style="height:240px;font:12px monospace" readonly>' + esc(text) + '</textarea><div class="row" style="justify-content:flex-end;margin-top:10px"><button data-act="copyExport">Copy</button><button class="primary" data-act="closeModal">Close</button></div>'); return; }
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: mime })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function curRater() { var r = p.raters.filter(function (x) { return x.id === state.raterId; })[0] || p.raters[0]; state.raterId = r ? r.id : null; return r; }
+  function taskNo(id) { return p.tasks.map(function (t) { return t.id; }).indexOf(id) + 1; }
+  function compNo(id) { return p.competencies.map(function (t) { return t.id; }).indexOf(id) + 1; }
+  function byId(list, id) { return list.filter(function (x) { return x.id === id; })[0] || {}; }
+
+  var STEPS = [['job', 'Job'], ['tasks', 'Tasks'], ['competencies', 'Competencies'], ['raters', 'Raters'], ['ratings', 'Ratings'], ['critical', 'Critical items'], ['linkage', 'Linkage'], ['report', 'Report']];
+  function renderNav() {
+    var steps = p.raterMode ? [p.round === 2 ? ['linkage', 'Rate linkage'] : ['ratings', 'Rate tasks and competencies']] : STEPS;
+    $('nav').innerHTML = steps.map(function (s, i) { return '<button data-view="' + s[0] + '" class="' + (state.view === s[0] ? 'on' : '') + '"><span class="n">' + (i + 1) + '</span>' + s[1] + '</button>'; }).join('');
+    $('jobName').textContent = p.job.title ? '· ' + p.job.title : '';
+  }
+  function render() {
+    renderNav();
+    var banner = p.raterMode ? '<div class="banner no-print"><b>Rater file for ' + esc((p.raters[0] || {}).name || 'rater') + '.</b> Rate every item on your own, without discussing your scores with other raters. When you finish, save your ratings and send the file back to the job analyst. <div class="row" style="margin-top:8px"><button class="primary" data-act="saveResponse">Save my ratings to send back</button><button data-act="exitRater">Close this rater file</button><span class="hint" id="progress"></span></div></div>' : '';
+    $('main').innerHTML = banner + views[state.view]();
+    progress();
+    window.scrollTo(0, 0);
+  }
+  function scaleBox(keys) { return '<div class="scales">' + keys.map(function (k) { return '<div><b>' + S[k].label + '</b><i>' + S[k].q + '</i><br>' + S[k].opts.map(function (o, i) { return i + ' = ' + o; }).join('<br>') + '</div>'; }).join('') + '</div>'; }
+  function rsel(kind, id, field, scale, val, short, label) {
+    return '<select data-rate="' + kind + ':' + id + ':' + field + '" aria-label="' + esc(label) + '"><option value="">–</option>' + S[scale].opts.map(function (o, i) { return '<option value="' + i + '"' + (val === i ? ' selected' : '') + '>' + (short ? i : i + ' – ' + o) + '</option>'; }).join('') + '</select>';
+  }
+  function raterPicker() {
+    if (p.raterMode) return '';
+    return '<div class="card no-print"><div class="row"><label style="margin:0">Entering ratings for</label><select data-pick="rater" style="width:auto">' + p.raters.map(function (r, i) { return '<option value="' + r.id + '"' + (r.id === state.raterId ? ' selected' : '') + '>' + esc(r.name || 'Rater ' + (i + 1)) + '</option>'; }).join('') + '</select><span class="hint" id="progress"></span></div><p class="hint" style="margin:8px 0 0">Type in ratings collected on paper or in an interview, or send each rater their own file from the Raters step and open the files they send back.</p></div>';
+  }
+  function progress() {
+    var el = $('progress'), r = curRater(); if (!el || !r) return;
+    if (state.view === 'linkage') { var s = Core.linkSets(p), tot = s.tasks.length * s.comps.length, done = 0; s.tasks.forEach(function (t) { s.comps.forEach(function (k) { if (typeof r.l[t + '|' + k] === 'number') done++; }); }); el.textContent = done + ' of ' + tot + ' cells rated'; }
+    else { var d = 0; p.tasks.forEach(function (t) { var x = r.t[t.id]; if (x && typeof x.imp === 'number' && typeof x.freq === 'number') d++; }); p.competencies.forEach(function (k) { var x = r.c[k.id]; if (x && typeof x.imp === 'number' && typeof x.entry === 'number' && typeof x.dv === 'number') d++; }); el.textContent = d + ' of ' + (p.tasks.length + p.competencies.length) + ' items fully rated'; }
+  }
+  function field(label, path, val, type) { return '<div><label>' + label + '</label><input type="' + (type || 'text') + '" data-path="' + path + '" value="' + esc(val) + '"></div>'; }
+  function cutField(label, key) { return '<div><label>' + label + '</label><input type="number" step="0.1" min="0" max="5" data-path="cutoffs.' + key + '" data-num="1" value="' + esc(p.cutoffs[key]) + '"></div>'; }
+  function need(msg) { return '<div class="card"><p>' + msg + '</p></div>'; }
+
+  var views = {
+    job: function () {
+      return '<h1>1. The job</h1><p class="lead">A job analysis documents what a job really involves and what a person needs in order to do it. You list the tasks and the competencies, people who know the job rate them, and the ratings show which are critical. The result is the evidence behind your job description, your job advert and your selection process.</p>' +
+        '<div class="card"><div class="grid2">' + field('Job title', 'job.title', p.job.title) + field('Organization', 'job.org', p.job.org) + field('Job family / level', 'job.family', p.job.family) + field('Job analyst', 'job.analyst', p.job.analyst) + field('Date', 'job.date', p.job.date, 'date') + '</div>' +
+        '<div style="margin-top:12px"><label>Information collected about the job</label><textarea data-path="job.sources" rows="3" placeholder="e.g. current job description, performance objectives, interviews with job holders and their manager, industry or occupational studies">' + esc(p.job.sources) + '</textarea><p class="hint">Start with what already describes the work: job descriptions, levelling or grading guides, performance standards, occupational studies, and conversations with people who do or supervise the job.</p></div></div>' +
+        '<details class="card"><summary><b>Cutoffs</b> <span class="hint">(defaults follow the OPM recommendations; change only if you change how you use the scales)</span></summary><div class="grid2" style="margin-top:12px">' +
+        cutField('Task importance: critical at or above', 'taskImp') + cutField('Task frequency: critical at or above', 'taskFreq') + cutField('Competency importance: critical at or above', 'compImp') + cutField('Need at entry: critical at or below', 'compEntry') + cutField('Distinguishing value: assess at or above', 'compDV') + cutField('Linkage: linked at or above', 'link') + '</div></details>' +
+        '<div class="row"><button class="primary" data-view="tasks">Next: list the tasks</button></div>';
+    },
+    tasks: function () {
+      return '<h1>2. Tasks</h1><p class="lead">List the tasks needed to do the job successfully, and where each one came from. Write each task as an action: a verb, what is acted on, and why or how (for example, “Reviews supplier invoices against purchase orders to approve payment”).</p>' +
+        '<div class="scroll"><table><tr><th class="num">No.</th><th>Task</th><th style="width:24%">Source</th><th class="no-print" style="width:40px"></th></tr>' +
+        p.tasks.map(function (t, i) { return '<tr><td class="num">' + (i + 1) + '</td><td><textarea rows="2" data-path="tasks.' + i + '.text" aria-label="Task ' + (i + 1) + '">' + esc(t.text) + '</textarea></td><td><input type="text" list="sources" data-path="tasks.' + i + '.source" value="' + esc(t.source) + '" aria-label="Source of task ' + (i + 1) + '"></td><td class="no-print"><button class="del" data-act="delTask" data-i="' + i + '" title="Remove task">✕</button></td></tr>'; }).join('') +
+        '</table></div><datalist id="sources"><option>Job description</option><option>Levelling guide</option><option>Performance standards</option><option>Occupational study</option><option>Subject matter experts</option></datalist>' +
+        '<div class="row" style="margin-top:10px"><button data-act="addTask">+ Add task</button><button class="primary" data-view="competencies">Next: competencies</button></div>';
+    },
+    competencies: function () {
+      return '<h1>3. Competencies</h1><p class="lead">List the knowledge, skills, abilities and other characteristics a person needs to do the job successfully. Give each a short definition so every rater reads it the same way.</p>' +
+        '<div class="scroll"><table><tr><th class="num">No.</th><th style="width:24%">Competency</th><th>Definition</th><th style="width:20%">Source</th><th class="no-print" style="width:40px"></th></tr>' +
+        p.competencies.map(function (k, i) { return '<tr><td class="num">' + (i + 1) + '</td><td><input type="text" data-path="competencies.' + i + '.name" value="' + esc(k.name) + '" aria-label="Competency ' + (i + 1) + '"></td><td><textarea rows="2" data-path="competencies.' + i + '.definition" aria-label="Definition of competency ' + (i + 1) + '">' + esc(k.definition) + '</textarea></td><td><input type="text" list="sources2" data-path="competencies.' + i + '.source" value="' + esc(k.source) + '" aria-label="Source of competency ' + (i + 1) + '"></td><td class="no-print"><button class="del" data-act="delComp" data-i="' + i + '" title="Remove competency">✕</button></td></tr>'; }).join('') +
+        '</table></div><datalist id="sources2"><option>Job description</option><option>Levelling guide</option><option>Performance standards</option><option>Occupational study</option><option>Subject matter experts</option></datalist>' +
+        '<div class="row" style="margin-top:10px"><button data-act="addComp">+ Add competency</button><button class="primary" data-view="raters">Next: raters</button></div>';
+    },
+    raters: function () {
+      var s = Core.linkSets(p), round2 = s.tasks.length && s.comps.length;
+      return '<h1>4. Raters</h1><p class="lead">Raters are your subject matter experts: people who know the job well, such as experienced job holders and their managers. Each one rates on their own. Several raters give a steadier result than one.</p>' +
+        '<div class="scroll"><table><tr><th class="num">No.</th><th>Name</th><th>Job title / role</th><th class="no-print">Files for this rater</th><th class="no-print" style="width:40px"></th></tr>' +
+        p.raters.map(function (r, i) { return '<tr><td class="num">' + (i + 1) + '</td><td><input type="text" data-path="raters.' + i + '.name" value="' + esc(r.name) + '" aria-label="Rater name"></td><td><input type="text" data-path="raters.' + i + '.title" value="' + esc(r.title) + '" aria-label="Rater role"></td><td class="no-print"><div class="row"><button class="small" data-act="packet" data-id="' + r.id + '" data-round="1">Round 1: tasks and competencies</button><button class="small" data-act="packet" data-id="' + r.id + '" data-round="2"' + (round2 ? '' : ' disabled title="Available once round 1 shows critical tasks and competencies"') + '>Round 2: linkage</button></div></td><td class="no-print"><button class="del" data-act="delRater" data-i="' + i + '" title="Remove rater">✕</button></td></tr>'; }).join('') +
+        '</table></div><div class="row" style="margin-top:10px"><button data-act="addRater">+ Add rater</button><button class="primary" data-view="ratings">Next: ratings</button></div>' +
+        '<div class="card"><b>Two ways to collect ratings</b><p class="hint" style="margin:6px 0 0">1. <b>Send files.</b> Save a rater’s file and email it to them. They open this app, choose <i>Open file</i>, rate, and send back the file they save. You open that file here and their ratings are added. A rater file never contains anyone else’s scores.<br>2. <b>Enter them yourself.</b> Collect ratings on the printable worksheets or in an interview and type them in at the Ratings step.</p></div>';
+    },
+    ratings: function () {
+      if (!p.tasks.length && !p.competencies.length) return '<h1>5. Ratings</h1>' + need('Add tasks and competencies first.');
+      if (!p.raters.length) return '<h1>5. Ratings</h1>' + need('Add at least one rater first.');
+      var r = curRater();
+      return '<h1>' + (p.raterMode ? 'Rate the tasks and competencies' : '5. Ratings') + '</h1><p class="lead">Rate every task and competency for this job as it is actually done, not as it might ideally be.</p>' + raterPicker() +
+        '<h2>Tasks</h2>' + scaleBox(['taskImp', 'taskFreq']) + '<div class="scroll" style="margin-top:10px"><table><tr><th class="num">No.</th><th>Task</th><th style="width:22%">Importance</th><th style="width:26%">Frequency</th></tr>' +
+        p.tasks.map(function (t, i) { var x = r.t[t.id] || {}; return '<tr><td class="num">' + (i + 1) + '</td><td>' + esc(t.text) + '</td><td>' + rsel('t', t.id, 'imp', 'taskImp', x.imp, false, 'Importance of task ' + (i + 1)) + '</td><td>' + rsel('t', t.id, 'freq', 'taskFreq', x.freq, false, 'Frequency of task ' + (i + 1)) + '</td></tr>'; }).join('') + '</table></div>' +
+        '<h2>Competencies</h2>' + scaleBox(['compImp', 'compEntry', 'compDV']) + '<div class="scroll" style="margin-top:10px"><table><tr><th class="num">No.</th><th>Competency</th><th style="width:19%">Importance</th><th style="width:24%">Need at entry</th><th style="width:19%">Distinguishing value</th></tr>' +
+        p.competencies.map(function (k, i) { var x = r.c[k.id] || {}; return '<tr><td class="num">' + (i + 1) + '</td><td><b>' + esc(k.name) + '</b><div class="hint">' + esc(k.definition) + '</div></td><td>' + rsel('c', k.id, 'imp', 'compImp', x.imp, false, 'Importance of competency ' + (i + 1)) + '</td><td>' + rsel('c', k.id, 'entry', 'compEntry', x.entry, false, 'Need at entry of competency ' + (i + 1)) + '</td><td>' + rsel('c', k.id, 'dv', 'compDV', x.dv, false, 'Distinguishing value of competency ' + (i + 1)) + '</td></tr>'; }).join('') + '</table></div>' +
+        (p.raterMode ? '' : '<div class="row" style="margin-top:12px"><button class="primary" data-view="critical">Next: see the critical items</button></div>');
+    },
+    critical: function () {
+      var c = p.cutoffs, tr = Core.taskResults(p), cr = Core.compResults(p);
+      function tb(t) { return !t.n ? '<span class="badge b-mute">Not rated yet</span>' : t.eliminated ? '<span class="badge b-bad">Removed: not performed</span>' : t.critical ? '<span class="badge b-good">Critical</span>' : '<span class="badge b-mute">Not critical</span>'; }
+      function kb(k) { return !k.n ? '<span class="badge b-mute">Not rated yet</span>' : k.distinguishing ? '<span class="badge b-good">Critical · assess</span>' : k.critical ? '<span class="badge b-warn">Critical · low distinguishing value</span>' : '<span class="badge b-mute">Not critical</span>'; }
+      return '<h1>6. Critical tasks and competencies</h1><p class="lead">Ratings are averaged across raters, leaving out any 0 ratings. These results update as ratings come in.</p>' +
+        '<h2>Tasks</h2><p class="hint">A task is removed if at least half of the raters scored it 0 (not performed) on either scale. A task is critical when it averages ' + c.taskImp + ' or above on importance and ' + c.taskFreq + ' or above on frequency.</p><div class="scroll"><table><tr><th class="num">No.</th><th>Task</th><th class="c">Raters</th><th class="c">Importance</th><th class="c">Frequency</th><th>Result</th></tr>' +
+        tr.map(function (t) { return '<tr><td class="num">' + t.no + '</td><td>' + esc(t.text) + '</td><td class="c">' + t.n + '</td><td class="c">' + fmt(t.imp) + '</td><td class="c">' + fmt(t.freq) + '</td><td>' + tb(t) + '</td></tr>'; }).join('') + '</table></div>' +
+        '<h2>Competencies</h2><p class="hint">A competency is critical when it averages ' + c.compImp + ' or above on importance and ' + c.compEntry + ' or below on need at entry, meaning a new hire must bring it or gain it quickly. Among critical competencies, those averaging ' + c.compDV + ' or above on distinguishing value are the strongest candidates for your selection process.</p><div class="scroll"><table><tr><th class="num">No.</th><th>Competency</th><th class="c">Raters</th><th class="c">Importance</th><th class="c">Need at entry</th><th class="c">Distinguishing value</th><th>Result</th></tr>' +
+        cr.map(function (k) { return '<tr><td class="num">' + k.no + '</td><td>' + esc(k.name) + '</td><td class="c">' + k.n + '</td><td class="c">' + fmt(k.imp) + '</td><td class="c">' + fmt(k.entry) + '</td><td class="c">' + fmt(k.dv) + '</td><td>' + kb(k) + '</td></tr>'; }).join('') + '</table></div>' +
+        '<div class="row no-print" style="margin-top:12px"><button class="primary" data-view="linkage">Next: link tasks and competencies</button></div>';
+    },
+    linkage: function () {
+      var title = p.raterMode ? 'Rate the linkage' : '7. Task and competency linkage', s = Core.linkSets(p);
+      if (!s.tasks.length || !s.comps.length) return '<h1>' + title + '</h1>' + need('The linkage step uses the critical tasks and critical competencies. Finish the ratings first; at least one task and one competency must come out as critical.');
+      if (!p.raters.length) return '<h1>' + title + '</h1>' + need('Add at least one rater first.');
+      var r = curRater();
+      return '<h1>' + title + '</h1><p class="lead">For each critical task, rate how important each critical competency is for doing that task well. This shows that every competency you hire for is tied to real work.</p>' + raterPicker() + scaleBox(['link']) +
+        '<div class="scroll matrix" style="margin-top:10px"><table><tr><th>Task</th>' + s.comps.map(function (k) { return '<th class="c">C' + compNo(k) + '<small>' + esc(byId(p.competencies, k).name) + '</small></th>'; }).join('') + '</tr>' +
+        s.tasks.map(function (t) { return '<tr><td><b>T' + taskNo(t) + '</b> ' + esc(byId(p.tasks, t).text) + '</td>' + s.comps.map(function (k) { return '<td class="c">' + rsel('l', t + '|' + k, 'v', 'link', r.l[t + '|' + k], true, 'Task ' + taskNo(t) + ', competency ' + compNo(k)) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table></div>' +
+        (p.raterMode ? '' : '<div id="linkSummary">' + linkSummary() + '</div><div class="row no-print" style="margin-top:12px"><button class="primary" data-view="report">Next: report</button></div>');
+    },
+    report: function () {
+      var tr = Core.taskResults(p), cr = Core.compResults(p), L = Core.linkResults(p), c = p.cutoffs;
+      var done = L.total > 0 && L.rated > 0;
+      var finalT = done ? L.finalTasks : [], finalC = done ? L.finalComps : [];
+      finalC.forEach(function (k) { if (!p.decisions[k]) p.decisions[k] = { assess: true, use: '', note: '' }; });
+      var html = '<h1>' + (p.raterMode ? '' : '8. ') + 'Job analysis report</h1><p class="lead no-print">Review the outcome, record your decisions, then print or save as PDF. Keep the report with the job description as your record of how the requirements were set.</p>' +
+        '<div class="row no-print"><button class="primary" data-act="print">Print / save as PDF</button><button data-act="csv">Export results (CSV)</button><button data-act="saveFile">Save project file</button></div>' +
+        '<div class="card"><table><tr><td style="width:22%"><b>Job title</b></td><td>' + esc(p.job.title) + '</td><td style="width:18%"><b>Organization</b></td><td>' + esc(p.job.org) + '</td></tr><tr><td><b>Job family / level</b></td><td>' + esc(p.job.family) + '</td><td><b>Job analyst</b></td><td>' + esc(p.job.analyst) + '</td></tr><tr><td><b>Date</b></td><td>' + esc(p.job.date) + '</td><td><b>Raters</b></td><td>' + (p.raters.map(function (r) { return esc(r.name) + (r.title ? ' (' + esc(r.title) + ')' : ''); }).join('; ') || '–') + '</td></tr><tr><td><b>Information used</b></td><td colspan="3">' + esc(p.job.sources) + '</td></tr></table></div>' +
+        '<h2>Method</h2><p>Tasks and competencies were identified from the information above and rated independently by the raters. Ratings were averaged, leaving out ratings of 0. Tasks scored 0 (not performed) by at least half of the raters were removed. Tasks averaging ' + c.taskImp + '+ on importance and ' + c.taskFreq + '+ on frequency were treated as critical, as were competencies averaging ' + c.compImp + '+ on importance and ' + c.compEntry + ' or below on need at entry. Critical competencies were then rated against critical tasks; an average of ' + c.link + '+ counts as a link. Tasks and competencies without any link were set aside. The method follows the job analysis procedure in the U.S. Office of Personnel Management’s Delegated Examining Operations Handbook, Appendix D.</p>';
+      if (!done) return html + need('The final lists appear once linkage ratings have been entered at step 7.') + '<h2>Results so far</h2><p class="hint">Critical tasks: ' + tr.filter(function (t) { return t.critical; }).length + ' of ' + tr.length + '. Critical competencies: ' + cr.filter(function (k) { return k.critical; }).length + ' of ' + cr.length + '.</p>';
+      html += '<h2>Critical tasks linked to competencies</h2><table><tr><th class="num">No.</th><th>Task</th><th>Source</th><th class="c">Importance</th><th class="c">Frequency</th><th>Linked competencies</th></tr>' +
+        finalT.map(function (t) { var x = byId(tr, t); return '<tr><td class="num">' + x.no + '</td><td>' + esc(x.text) + '</td><td>' + esc(x.source) + '</td><td class="c">' + fmt(x.imp) + '</td><td class="c">' + fmt(x.freq) + '</td><td>' + L.comps.filter(function (k) { return L.cells[t + '|' + k].linked; }).map(function (k) { return esc(byId(cr, k).name); }).join(', ') + '</td></tr>'; }).join('') + '</table>' +
+        '<h2>Competencies required for the job, and how they will be used</h2><p class="hint no-print">Untick “can be assessed” for anything you cannot reasonably measure in your selection process. A minimum requirement screens people in or out; a ranking factor separates stronger from weaker qualified candidates.</p><table><tr><th class="num">No.</th><th>Competency</th><th class="c">Imp.</th><th class="c">Entry</th><th class="c">Dist.</th><th>Linked tasks</th><th class="c">Can be assessed</th><th style="min-width:185px">Use in selection</th><th>Notes (how it will be assessed)</th></tr>' +
+        finalC.map(function (k) { var x = byId(cr, k), d = p.decisions[k]; return '<tr><td class="num">' + x.no + '</td><td><b>' + esc(x.name) + '</b><div class="hint">' + esc(x.definition) + '</div></td><td class="c">' + fmt(x.imp) + '</td><td class="c">' + fmt(x.entry) + '</td><td class="c">' + fmt(x.dv) + '</td><td>' + L.tasks.filter(function (t) { return L.cells[t + '|' + k].linked; }).map(function (t) { return 'T' + taskNo(t); }).join(', ') + '</td><td class="c"><input type="checkbox" data-path="decisions.' + k + '.assess" data-check="1"' + (d.assess ? ' checked' : '') + ' aria-label="Can be assessed"></td><td><select data-path="decisions.' + k + '.use" aria-label="Use in selection">' + [['', 'Not decided'], ['Minimum requirement', 'Minimum requirement'], ['Ranking factor', 'Ranking factor'], ['Not used', 'Not used in selection']].map(function (o) { return '<option value="' + o[0] + '"' + (d.use === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></td><td><textarea rows="2" data-path="decisions.' + k + '.note" aria-label="Notes">' + esc(d.note) + '</textarea></td></tr>'; }).join('') + '</table>' +
+        '<h2>Linkage matrix (average ratings)</h2>' + linkTable(L);
+      var setAside = tr.filter(function (t) { return finalT.indexOf(t.id) < 0; }), setAsideC = cr.filter(function (k) { return finalC.indexOf(k.id) < 0; });
+      html += '<h2>Items set aside</h2><table><tr><th>Item</th><th>Reason</th></tr>' +
+        setAside.map(function (t) { return '<tr><td>T' + t.no + ' ' + esc(t.text) + '</td><td>' + (!t.n ? 'Not rated' : t.eliminated ? 'Not performed (rated 0 by at least half of raters)' : !t.critical ? 'Below cutoff (importance ' + fmt(t.imp) + ', frequency ' + fmt(t.freq) + ')' : 'Not linked to any critical competency') + '</td></tr>'; }).join('') +
+        setAsideC.map(function (k) { return '<tr><td>C' + k.no + ' ' + esc(k.name) + '</td><td>' + (!k.n ? 'Not rated' : !k.critical ? 'Not critical (importance ' + fmt(k.imp) + ', need at entry ' + fmt(k.entry) + ')' : 'Not linked to any critical task') + '</td></tr>'; }).join('') +
+        ((setAside.length + setAsideC.length) ? '' : '<tr><td colspan="2">None</td></tr>') + '</table>' +
+        '<div class="sign only-print"><div>Job analyst signature and date</div><div>Approving manager signature and date</div></div>';
+      return html;
+    }
+  };
+  function linkTable(L) {
+    return '<div class="scroll"><table><tr><th>Task</th>' + L.comps.map(function (k) { return '<th class="c">C' + compNo(k) + '<small style="display:block;font-weight:400">' + esc(byId(p.competencies, k).name) + '</small></th>'; }).join('') + '</tr>' +
+      L.tasks.map(function (t) { return '<tr><td><b>T' + taskNo(t) + '</b> ' + esc(byId(p.tasks, t).text) + '</td>' + L.comps.map(function (k) { var x = L.cells[t + '|' + k]; return '<td class="c ' + (x.linked ? 'linked' : 'unlinked') + '">' + fmt(x.avg) + '</td>'; }).join('') + '</tr>'; }).join('') + '</table></div><p class="hint">Shaded cells are links (average of ' + p.cutoffs.link + ' or above).</p>';
+  }
+  function linkSummary() {
+    var L = Core.linkResults(p);
+    if (!L.rated) return '';
+    var out = '<h2>Averages across all raters</h2>' + linkTable(L);
+    if (L.droppedTasks.length || L.droppedComps.length) out += '<div class="banner"><b>Not linked:</b> ' + L.droppedTasks.map(function (t) { return 'Task ' + taskNo(t); }).concat(L.droppedComps.map(function (k) { return esc(byId(p.competencies, k).name); })).join(', ') + '. Unlinked items are left out of the final lists. If one of them surprises you, check whether a critical task or competency is missing from your lists.</div>';
+    return out;
+  }
+  function csv() {
+    function q(x) { x = x === null || x === undefined ? '' : String(x); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }
+    var rows = [['Job', p.job.title], ['Organization', p.job.org], [], ['TASKS'], ['No', 'Task', 'Source', 'Raters', 'Importance (avg)', 'Frequency (avg)', 'Removed as not performed', 'Critical', 'In final list']];
+    var L = Core.linkResults(p);
+    Core.taskResults(p).forEach(function (t) { rows.push([t.no, t.text, t.source, t.n, fmt(t.imp), fmt(t.freq), t.eliminated ? 'Yes' : 'No', t.critical ? 'Yes' : 'No', L.finalTasks.indexOf(t.id) >= 0 ? 'Yes' : 'No']); });
+    rows.push([], ['COMPETENCIES'], ['No', 'Competency', 'Definition', 'Source', 'Raters', 'Importance (avg)', 'Need at entry (avg)', 'Distinguishing value (avg)', 'Critical', 'In final list', 'Can be assessed', 'Use in selection', 'Notes']);
+    Core.compResults(p).forEach(function (k) { var d = p.decisions[k.id] || {}, fin = L.finalComps.indexOf(k.id) >= 0; rows.push([k.no, k.name, k.definition, k.source, k.n, fmt(k.imp), fmt(k.entry), fmt(k.dv), k.critical ? 'Yes' : 'No', fin ? 'Yes' : 'No', fin ? (d.assess ? 'Yes' : 'No') : '', fin ? d.use : '', fin ? d.note : '']); });
+    rows.push([], ['LINKAGE (average ratings)'], ['Task'].concat(L.comps.map(function (k) { return 'C' + compNo(k) + ' ' + byId(p.competencies, k).name; })));
+    L.tasks.forEach(function (t) { rows.push(['T' + taskNo(t)].concat(L.comps.map(function (k) { return fmt(L.cells[t + '|' + k].avg); }))); });
+    return rows.map(function (r) { return r.map(q).join(','); }).join('\r\n');
+  }
+  function setPath(path, val) { var ks = path.split('.'), o = p; for (var i = 0; i < ks.length - 1; i++) { if (o[ks[i]] === undefined) o[ks[i]] = {}; o = o[ks[i]]; } o[ks[ks.length - 1]] = val; }
+  function openProject(obj) {
+    if (obj && obj.kind === 'oja-response') {
+      if (p.raterMode) return toast('Open this ratings file in the job analyst’s project.');
+      var err = Core.mergeResponse(p, obj); if (err) return toast(err);
+      store(); state.raterId = obj.rater.id; state.view = obj.round === 2 ? 'linkage' : 'critical'; render(); return toast('Ratings from ' + (obj.rater.name || 'rater') + ' added.');
+    }
+    if (!obj || obj.kind !== 'oja-project') return toast('This is not an Open Job Analysis file.');
+    p = Core.normalize(obj); state.raterId = null; state.view = p.raterMode ? (p.round === 2 ? 'linkage' : 'ratings') : 'job'; store(); render();
+  }
+  var acts = {
+    closeModal: closeModal,
+    confirmYes: function () { closeModal(); if (pendingYes) pendingYes(); pendingYes = null; },
+    copyExport: function () { var t = $('exportText'); t.select(); try { navigator.clipboard.writeText(t.value).then(function () { toast('Copied'); }, function () { toast('Select the text and copy it manually'); }); } catch (e) { toast('Select the text and copy it manually'); } },
+    saveFile: function () { if (p.raterMode) return acts.saveResponse(); exportFile(slug(p.job.title) + '.json', JSON.stringify(p, null, 1), 'application/json'); },
+    saveResponse: function () { exportFile(slug(p.job.title) + '-ratings-' + slug(p.raters[0].name || 'rater') + '-round' + p.round + '.json', JSON.stringify(Core.raterResponse(p), null, 1), 'application/json'); },
+    exitRater: function () { confirmBox('Close this rater file? Save your ratings first if you have not sent them yet.', function () { var q = null; try { localStorage.removeItem(RKEY); var s = localStorage.getItem(KEY); q = s ? JSON.parse(s) : null; } catch (e) {} openProject(q && q.kind === 'oja-project' ? q : Core.blank()); }); },
+    openFile: function () { $('file').value = ''; $('file').click(); },
+    example: function () { confirmBox('Load the example job analysis? It replaces what is on screen. Save your file first if you want to keep it.', function () { openProject(exampleProject()); }); },
+    newProject: function () { confirmBox('Start a new, empty job analysis? Save your file first if you want to keep the current one.', function () { openProject(Core.blank()); }); },
+    addTask: function () { p.tasks.push({ id: 't' + Core.rid(), text: '', source: '' }); store(); render(); focusLast('textarea[data-path^="tasks."]'); },
+    addComp: function () { p.competencies.push({ id: 'c' + Core.rid(), name: '', definition: '', source: '' }); store(); render(); focusLast('input[data-path$=".name"]'); },
+    addRater: function () { p.raters.push({ id: 'r' + Core.rid(), name: '', title: '', t: {}, c: {}, l: {} }); store(); render(); focusLast('input[data-path$=".name"]'); },
+    delTask: function (el) { var i = +el.dataset.i; confirmBox('Remove task ' + (i + 1) + ' and its ratings?', function () { p.tasks.splice(i, 1); store(); render(); }); },
+    delComp: function (el) { var i = +el.dataset.i; confirmBox('Remove competency ' + (i + 1) + ' and its ratings?', function () { p.competencies.splice(i, 1); store(); render(); }); },
+    delRater: function (el) { var i = +el.dataset.i; confirmBox('Remove this rater and all of their ratings?', function () { p.raters.splice(i, 1); state.raterId = null; store(); render(); }); },
+    packet: function (el) { var r = byId(p.raters, el.dataset.id), round = +el.dataset.round; exportFile(slug(p.job.title) + '-for-' + slug(r.name || 'rater') + '-round' + round + '.json', JSON.stringify(Core.raterPacket(p, r.id, round), null, 1), 'application/json'); },
+    print: function () { if (framed) return toast('Printing is not available in this preview. Use the downloaded app.'); window.print(); },
+    csv: function () { exportFile(slug(p.job.title) + '-results.csv', '﻿' + csv(), 'text/csv'); }
+  };
+  function focusLast(sel) { var els = document.querySelectorAll(sel); if (els.length) els[els.length - 1].focus(); }
+  document.addEventListener('click', function (e) {
+    var v = e.target.closest('[data-view]'); if (v) { state.view = v.dataset.view; render(); return; }
+    var a = e.target.closest('[data-act]'); if (a && !a.disabled && acts[a.dataset.act]) acts[a.dataset.act](a);
+    if (e.target.id === 'modal') closeModal();
+  });
+  function onEdit(e) {
+    var el = e.target;
+    if (el.dataset.path) { setPath(el.dataset.path, el.dataset.check ? el.checked : el.dataset.num ? (el.value === '' ? Core.DEFAULT_CUTOFFS[el.dataset.path.split('.')[1]] : Number(el.value)) : el.value); store(); if (el.dataset.path === 'job.title') $('jobName').textContent = p.job.title ? '· ' + p.job.title : ''; return; }
+    if (e.type !== 'change') return;
+    if (el.dataset.pick === 'rater') { state.raterId = el.value; render(); return; }
+    if (el.dataset.rate) {
+      var parts = el.dataset.rate.split(':'), r = curRater(); if (!r) return;
+      var val = el.value === '' ? undefined : Number(el.value);
+      if (parts[0] === 'l') { if (val === undefined) delete r.l[parts[1]]; else r.l[parts[1]] = val; }
+      else { var o = r[parts[0]][parts[1]] = r[parts[0]][parts[1]] || {}; if (val === undefined) delete o[parts[2]]; else o[parts[2]] = val; }
+      store(); progress();
+      var ls = $('linkSummary'); if (ls) ls.innerHTML = linkSummary();
+    }
+  }
+  document.addEventListener('input', onEdit); document.addEventListener('change', onEdit);
+  $('file').addEventListener('change', function () {
+    var f = this.files[0]; if (!f) return; var rd = new FileReader();
+    rd.onload = function () { try { openProject(JSON.parse(rd.result)); } catch (e) { toast('Could not read this file.'); } }; rd.readAsText(f);
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+  window.__oja = { open: openProject, get: function () { return p; } };
+  render();
+})();
+</script>
+</body>
+</html>
