@@ -19,7 +19,7 @@ Then follow the eight steps along the top:
 1. **Job** – record the job and the information you collected about it.
 2. **Tasks** – list the tasks and where each came from.
 3. **Competencies** – list the knowledge, skills, abilities and other characteristics, with definitions.
-4. **Raters** – add your subject matter experts: people who know the job well.
+4. **Raters** – add your job experts: people who know the job well.
 5. **Ratings** – each rater scores tasks (importance, frequency) and competencies (importance, need at entry, distinguishing value).
 6. **Critical items** – the app averages the ratings and shows which tasks and competencies are critical.
 7. **Linkage** – raters score how important each critical competency is to each critical task.
@@ -47,10 +47,13 @@ The procedure follows the job analysis methodology in the U.S. Office of Personn
 | Remove tasks | A task is removed if at least half of the raters scored it 0 (not performed) on either scale |
 | Average | Ratings are averaged across raters; 0 ratings are left out of the average |
 | Critical tasks | Average importance ≥ 3.0 **and** average frequency ≥ 3.0 |
+| Rare but important tasks | A task below the frequency cutoff but averaging ≥ 4.0 on importance is flagged; the analyst decides whether to keep it as critical |
 | Critical competencies | Average importance ≥ 3.0 **and** average need at entry ≤ 2.0 |
 | Candidates for assessment | Critical competencies with average distinguishing value ≥ 3.0 |
 | Linkage | A competency is linked to a task when the average linkage rating is ≥ 3.0 |
 | Final lists | Tasks linked to no competency, and competencies linked to no task, are set aside |
+
+The rare-but-important check is an addition to the handbook's method. A strict frequency cutoff drops tasks that are seldom performed but matter a great deal when they are, a weakness noted in the job analysis literature (Guion, 2011, *Assessment, Measurement, and Prediction for Personnel Decisions*, ch. 2). The app flags these tasks and leaves the decision to the analyst; the report records what was kept.
 
 Two implementation choices go slightly beyond the handbook's wording: 0 ("not applicable") ratings are left out of competency and linkage averages as well as task averages, and an item counts for a rater only once that rater has scored it on every scale.
 

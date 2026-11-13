@@ -33,6 +33,11 @@ assert.strictEqual(tr[1].eliminated, false); assert.strictEqual(tr[1].imp, 5); a
 assert.strictEqual(tr[2].critical, false);
 // t4: two complete ratings, one is 0 -> exactly half -> eliminated
 assert.strictEqual(tr[3].n, 2); assert.strictEqual(tr[3].eliminated, true); assert.strictEqual(tr[3].critical, false);
+// rare but important: t3 averages 4.00 on importance but 2.67 on frequency -> flagged, critical only if the analyst keeps it
+assert.strictEqual(tr[2].rare, true); assert.strictEqual(tr[2].kept, false); assert.strictEqual(tr[0].rare, false); assert.strictEqual(tr[3].rare, false);
+p.keepTasks = { t3: true }; assert.strictEqual(Core.taskResults(p)[2].critical, true); assert.strictEqual(Core.taskResults(p)[2].kept, true);
+p.keepTasks = { t1: true }; assert.strictEqual(Core.taskResults(p)[0].kept, false); // keeping only applies to flagged tasks
+p.cutoffs.rareImp = 4.5; p.keepTasks = { t3: true }; assert.strictEqual(Core.taskResults(p)[2].critical, false); p.cutoffs.rareImp = 4; p.keepTasks = {};
 // unrated task is not critical
 assert.strictEqual(Core.taskResults(proj())[0].critical, false);
 
@@ -74,6 +79,6 @@ assert.ok(Core.mergeResponse(Core.blank(), Core.raterResponse(pk)));
 
 // example project produces a complete, sensible result
 const ex = exampleProject(), exT = Core.taskResults(ex), exL = Core.linkResults(ex);
-assert.strictEqual(exT[9].eliminated, true);
+assert.strictEqual(exT[9].eliminated, true); assert.strictEqual(exT[11].kept, true); assert.ok(exL.finalTasks.includes('t12'));
 assert.ok(exL.finalTasks.length >= 4 && exL.finalComps.length >= 3 && exL.rated === exL.total);
 console.log('All tests passed. Example: ' + exT.filter(t => t.critical).length + ' critical tasks, ' + Core.compResults(ex).filter(k => k.critical).length + ' critical competencies, final ' + exL.finalTasks.length + ' tasks / ' + exL.finalComps.length + ' competencies; dropped', exL.droppedTasks, exL.droppedComps);
