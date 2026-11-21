@@ -58,6 +58,18 @@ footer{max-width:1080px;margin:0 auto;padding:0 20px 30px;font-size:12px;color:v
 .langsw button[aria-pressed=true]{background:#fff;color:var(--navy);border-color:#fff;font-weight:600}
 details.note{font-size:13px;color:var(--muted);margin-top:8px}details.note summary{cursor:pointer;color:var(--navy)}
 .kind{display:inline-block;margin-left:6px}
+#modal .box.wide{max-width:960px}
+.rome-res{list-style:none;margin:8px 0 0;padding:0;max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.rome-res li{border-bottom:1px solid var(--line)}.rome-res li:last-child{border-bottom:0}
+.rome-res button{display:block;width:100%;text-align:left;border:0;border-radius:0;padding:7px 10px;background:#fff}.rome-res button:hover{background:var(--soft)}
+.rome-res .code{font-weight:600;color:var(--navy);margin-right:6px}
+.rome-fiche dl{margin:8px 0}.rome-fiche dt{font-weight:600;color:var(--navy);margin-top:10px}.rome-fiche dd{margin:2px 0 0}
+.rome-imp h3{font-size:15px;margin:16px 0 4px;color:var(--navy)}.rome-imp h4{font-size:13px;margin:10px 0 2px;color:var(--muted)}
+.rome-imp table td{padding:4px 6px;vertical-align:middle}.rome-imp table td:first-child{width:28px;text-align:center}.rome-imp select{width:auto;padding:2px 4px}
+.rome-imp tr.done{color:var(--muted)}
+.rome-imp .sticky{position:sticky;bottom:-20px;background:#fff;padding:10px 0;border-top:1px solid var(--line);margin-top:12px}
+html[lang=fr] select[data-rate]{font-size:14px;min-width:228px}
+html[lang=fr] .matrix select[data-rate]{min-width:52px;font-size:inherit}
 </style>
 </head>
 <body>
@@ -204,9 +216,68 @@ var Core = (function () {
   }
   // An item imported from the ROME whose wording has not been changed yet.
   function needsReview(item) { return !!(item && item.origin && item.origin.type === 'rome' && item.origin.edited === false); }
+  // ROME import. Search ignores accents and case.
+  function fold(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/œ/g, 'oe').replace(/Œ/g, 'oe').replace(/æ/g, 'ae').replace(/Æ/g, 'ae').toLowerCase(); }
+  // Turns a ROME profile (one data/rome/vN/CODE.js file) into a list of items the analyst can tick.
+  // Savoir-faire: core items ticked, imported as tasks by default (the analyst can switch each to a competency).
+  // Savoirs, certifications and savoir-être: unticked, imported as competencies of the matching kind.
+  function romeItems(f) {
+    var out = [];
+    (f.sf || []).forEach(function (x, i) { out.push({ key: 'sf' + i, group: 'sf', cat: x[0], label: x[1], ogr: x[2], core: !!x[3], kind: 'savoir-faire', as: 'task', on: !!x[3] }); });
+    (f.sv || []).forEach(function (x, i) { out.push({ key: 'sv' + i, group: 'sv', cat: x[0], label: x[1], ogr: x[2], core: !!x[3], kind: 'savoir', as: 'comp', on: false }); });
+    (f.cert || []).forEach(function (x, i) { out.push({ key: 'ce' + i, group: 'cert', cat: '', label: x[0], ogr: x[1], core: false, kind: 'certification', as: 'comp', on: false }); });
+    (f.se || []).forEach(function (x, i) { out.push({ key: 'se' + i, group: 'se', cat: '', label: x[0], ogr: x[1], core: false, kind: 'savoir-etre', as: 'comp', on: false }); });
+    return out;
+  }
+  // ROME items already in the project, by OGR code.
+  function romeOgrs(p) {
+    var s = {};
+    (p.tasks || []).concat(p.competencies || []).forEach(function (x) { if (x.origin && x.origin.type === 'rome' && x.origin.ogr != null) s[x.origin.ogr] = true; });
+    return s;
+  }
+  // Adds the chosen items. Each keeps its origin (profile code, OGR code, ROME version) and stays flagged until edited.
+  // Items already in the project (same OGR code) are skipped.
+  function importRome(p, code, version, chosen, source) {
+    var have = romeOgrs(p), added = 0, skipped = 0;
+    chosen.forEach(function (it) {
+      if (have[it.ogr]) { skipped++; return; }
+      have[it.ogr] = true; added++;
+      var origin = { type: 'rome', code: code, ogr: it.ogr, version: String(version), edited: false };
+      if (it.as === 'task') p.tasks.push({ id: 't' + rid(), text: it.label, source: source || '', origin: origin });
+      else p.competencies.push({ id: 'c' + rid(), name: it.label, definition: '', source: source || '', kind: it.group === 'sf' ? 'savoir-faire' : it.kind, origin: origin });
+    });
+    return { added: added, skipped: skipped };
+  }
+  // Whether the project uses the ROME at all (a chosen profile or any imported item): the report then carries the attribution.
+  function romeUsed(p) {
+    if (p.job && p.job.rome && p.job.rome.code) return true;
+    return (p.tasks || []).concat(p.competencies || []).some(function (x) { return x.origin && x.origin.type === 'rome'; });
+  }
+  function romeVersion(p) {
+    if (p.job && p.job.rome && p.job.rome.version) return String(p.job.rome.version);
+    var o = (p.tasks || []).concat(p.competencies || []).filter(function (x) { return x.origin && x.origin.type === 'rome' && x.origin.version; })[0];
+    return o ? String(o.origin.version) : '';
+  }
+  // Search over job titles. index.titles rows: [label, profile number, 0 usual | 1 profile title | 2 rarely used].
+  function romeSearch(index, folded, q, max) {
+    var words = fold(q).split(/[^a-z0-9]+/).filter(Boolean); if (!words.length) return { list: [], total: 0 };
+    var codeQ = /^[a-z]\d{0,4}$/.test(words[0]) && words.length === 1 ? words[0].toUpperCase() : null;
+    var seen = {}, hits = [];
+    index.titles.forEach(function (r, i) {
+      var code = index.fiches[r[1]][0];
+      var ok = words.every(function (w) { return folded[i].indexOf(w) >= 0; }) || (codeQ && code.indexOf(codeQ) === 0);
+      if (!ok) return;
+      var score = (r[2] === 1 ? 0 : r[2] === 2 ? 2 : 1) * 1000 + r[0].length;
+      if (seen[code] === undefined) { seen[code] = hits.length; hits.push({ code: code, title: index.fiches[r[1]][1], label: r[0], rare: r[2] === 2, score: score }); }
+      else if (score < hits[seen[code]].score) { var h = hits[seen[code]]; h.label = r[0]; h.rare = r[2] === 2; h.score = score; }
+    });
+    hits.sort(codeQ ? function (a, b) { return a.code < b.code ? -1 : a.code > b.code ? 1 : 0; } : function (a, b) { return a.score - b.score; });
+    return { list: hits.slice(0, max || 30), total: hits.length };
+  }
   return { SCALES: SCALES, DEFAULT_CUTOFFS: DEFAULT_CUTOFFS, VERSION: VERSION, rid: rid, blank: blank, normalize: normalize, mean: mean, taskResults: taskResults,
     compResults: compResults, linkSets: linkSets, linkResults: linkResults, raterPacket: raterPacket, raterResponse: raterResponse, mergeResponse: mergeResponse,
-    fmtNum: fmtNum, fmtCut: fmtCut, slug: slug, toCSV: toCSV, needsReview: needsReview };
+    fmtNum: fmtNum, fmtCut: fmtCut, slug: slug, toCSV: toCSV, needsReview: needsReview,
+    fold: fold, romeItems: romeItems, importRome: importRome, romeUsed: romeUsed, romeVersion: romeVersion, romeSearch: romeSearch };
 })();
 if (typeof module !== 'undefined') module.exports = Core;
 /*CORE-END*/
@@ -259,7 +330,12 @@ function exampleFr() {
   function rome(ogr, edited) { return { type: 'rome', code: 'M1501', ogr: ogr, version: '62', edited: edited !== false }; }
   var FICHE = 'Fiche ROME M1501';
   return buildExample({ lang: 'fr',
-    job: { title: 'Assistant / Assistante RH (exemple)', org: 'Entreprise exemple (PME, 80 salariés)', family: 'Ressources humaines · ROME M1501', analyst: 'Votre nom', date: '', sources: 'Fiche ROME M1501 (version 62, octobre 2026) ; fiche de poste actuelle ; ancienne offre d’emploi ; entretiens avec deux titulaires du poste et leur responsable.' },
+    job: { title: 'Assistant / Assistante RH (exemple)', org: 'Entreprise exemple (PME, 80 salariés)', family: 'Ressources humaines · ROME M1501', analyst: 'Votre nom', date: '', sources: 'Fiche ROME M1501 (version 62, octobre 2026) ; fiche de poste actuelle ; ancienne offre d’emploi ; entretiens avec deux titulaires du poste et leur responsable.',
+      rome: { code: 'M1501', title: 'Assistant / Assistante Ressources Humaines (RH)', version: '62', published: '2026-10-19', domain: 'Ressources humaines',
+        ctx: [['Publics spécifiques', 'Salariés', 300846], ['Statut d\'emploi', 'Salarié secteur privé (CDI, CDD)', 403103], ['Statut d\'emploi', 'Salarié secteur public', 403104],
+          ['Conditions de travail et risques professionnels', 'Possibilité de télétravail', 300799], ['Conditions de travail et risques professionnels', 'Station assise prolongée', 403025],
+          ['Horaires et durée du travail', 'Travail en journée', 300806], ['Horaires et durée du travail', 'Travail selon un rythme irrégulier et des pics d\'activité', 403095],
+          ['Types de structures', 'Entreprises et milieux professionnels', 405348], ['Types de structures', 'Organisme public', 405349]] } },
     T: [['Met à jour le dossier de chaque salarié dans le SIRH après tout changement de situation (adresse, contrat, temps de travail).', FICHE, 4, 4, rome(489449)],
       ['Prépare les contrats de travail et les avenants à partir des modèles validés, et les fait signer avant l’arrivée du salarié.', FICHE, 4, 3, rome(117290)],
       ['Effectue les formalités d’embauche (DPAE, registre unique du personnel, visite d’information et de prévention) dans les délais légaux.', FICHE, 5, 3, rome(489465)],
@@ -385,6 +461,31 @@ var I18N = (function () {
     noPrint: 'Printing is not available in this preview. Use the downloaded app.', langSwitched: 'Language switched to English to match this file.',
     fnDefault: 'job-analysis', fnRatings: '-ratings-', fnFor: '-for-', fnRound: '-round', fnResults: '-results.csv',
     entryNoteLabel: '', entryNote: '',
+    romeTitle: 'Start from a ROME profile', romeSub: 'The ROME is the French public reference of occupations (France Travail). Its profiles are in French.',
+    romeOpen: 'Search the ROME', romeClose: 'Close', romeLoading: 'Loading the ROME…',
+    romeLoadFail: 'The ROME data could not be loaded. Check that the data/rome folder sits next to index.html.',
+    romeSearchLabel: 'Job title or ROME code', romeSearchPh: 'e.g. assistant RH, gestionnaire paie, M1501',
+    romeSearchHint: '{n} job titles from {f} ROME profiles. Accents and capitals do not matter.',
+    romeNoResult: 'No ROME profile matches this search.', romeMore: 'First {n} of {t} profiles; type more words to narrow the list.', romeRareTitle: 'rarely used title',
+    romeDefinition: 'Definition', romeAccess: 'Access to the job',
+    romeAccessWarn: 'This describes the usual routes into the occupation, not requirements for your job. Before you ask for any qualification or experience, check that the job really needs it: a difference in treatment must answer a genuine and determining occupational requirement (French Labour Code, art. L1133-1; Défenseur des droits, 2019).',
+    romeContexts: 'Working context', romeTitles: 'Other job titles',
+    romeUse: 'Use this profile', romeImportBtn: 'Choose items to import…', romeChange: 'Change profile', romeBack: 'Back to the results', romeView: 'View the profile',
+    romeChosen: 'Profile in use:', romeUsed: 'Profile recorded for the job.',
+    romeImportTitle: 'Import from ROME profile {code}',
+    romeImportLead: 'The ROME describes the occupation in general, not your job. Import what fits, then rewrite each item so it describes your job: a task as a verb, what is acted on, and why or how; a competency with a definition in terms of behaviour. Imported items stay flagged “To make specific” until you edit them.',
+    romeSF: 'Skills and activities (savoir-faire)', romeSFHint: 'Items marked “core” are central to the occupation and are ticked. Choose whether each one becomes a task or a competency.',
+    romeCore: 'core', romeAsTask: 'Task', romeAsComp: 'Competency', romeImportAs: 'Import as',
+    romeSV: 'Knowledge (savoirs)', romeSVHint: 'Unticked. Keep only the knowledge your tasks actually need.',
+    romeCert: 'Certifications and licences',
+    romeCertWarn: 'Ask for a qualification only when the law requires it or the job demonstrably needs it. Requiring a particular diploma or school can exclude people who gained the same knowledge another way.',
+    romeSE: 'Personal qualities (savoir-être)', romeSEWarn: 'Define each one as behaviour you can observe in this job; otherwise raters will read it differently.',
+    romeAlready: 'already in the project', romeTickCore: 'Tick core items', romeTickNone: 'Untick all',
+    romeDoImport: 'Import {n} items', romeImported: '{a} items imported ({s} already in the project). Now make each one specific.',
+    romeDefPh: 'Describe the behaviour this job needs (write this before rating).',
+    romeSource: 'ROME profile {code}', romeSourceNote: 'ROME profile {code} (version {v})',
+    rRome: 'ROME profile', romeAttribution: 'Source: France Travail, ROME 4.0 version {v}{date}, Licence Ouverte (Etalab open licence).',
+    months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
     scales: Core.SCALES
   };
   var fr = {
@@ -468,14 +569,39 @@ var I18N = (function () {
     noPrint: 'L’impression n’est pas disponible dans cet aperçu. Utilisez la version téléchargée de l’outil.', langSwitched: 'Langue passée en français pour correspondre à ce fichier.',
     fnDefault: 'analyse-des-emplois', fnRatings: '-notes-', fnFor: '-pour-', fnRound: '-tour', fnResults: '-resultats.csv',
     // Need-at-entry note (French version only). Code du travail articles checked on Légifrance, version in force on 21 November 2026.
+    romeTitle: 'Partir d’une fiche ROME', romeSub: 'Le ROME est le répertoire public des métiers de France Travail. Une fiche décrit un métier en général : c’est un point de départ, pas la description de votre poste.',
+    romeOpen: 'Chercher dans le ROME', romeClose: 'Fermer', romeLoading: 'Chargement du ROME…',
+    romeLoadFail: 'Les données du ROME n’ont pas pu être chargées. Vérifiez que le dossier data/rome se trouve à côté de index.html.',
+    romeSearchLabel: 'Intitulé de poste ou code ROME', romeSearchPh: 'par exemple assistant RH, gestionnaire paie, M1501',
+    romeSearchHint: '{n} appellations de métiers issues de {f} fiches ROME. Les accents et les majuscules ne comptent pas.',
+    romeNoResult: 'Aucune fiche ROME ne correspond à cette recherche.', romeMore: '{n} premières fiches sur {t} ; ajoutez des mots pour affiner.', romeRareTitle: 'appellation peu usitée',
+    romeDefinition: 'Définition', romeAccess: 'Accès au métier',
+    romeAccessWarn: 'Ce sont les voies d’accès habituelles au métier, pas les exigences de votre poste. Avant d’exiger un diplôme ou une expérience, vérifiez que le poste en a vraiment besoin : une différence de traitement doit répondre à une exigence professionnelle essentielle et déterminante (art. L. 1133-1 du Code du travail ; Défenseur des droits, 2019).',
+    romeContexts: 'Contextes de travail', romeTitles: 'Autres appellations',
+    romeUse: 'Utiliser cette fiche', romeImportBtn: 'Choisir les éléments à importer…', romeChange: 'Changer de fiche', romeBack: 'Retour aux résultats', romeView: 'Voir la fiche',
+    romeChosen: 'Fiche utilisée :', romeUsed: 'Fiche enregistrée pour le poste.',
+    romeImportTitle: 'Importer depuis la fiche ROME {code}',
+    romeImportLead: 'Le ROME décrit le métier en général, pas votre poste. Importez ce qui correspond, puis réécrivez chaque élément pour qu’il décrive votre poste : une tâche avec un verbe, ce sur quoi elle porte, et pourquoi ou comment ; une compétence avec une définition en termes de comportement. Les éléments importés restent signalés « À préciser » tant que vous ne les avez pas modifiés.',
+    romeSF: 'Savoir-faire', romeSFHint: 'Les éléments « cœur de métier » sont cochés. Choisissez pour chacun s’il devient une tâche ou une compétence.',
+    romeCore: 'cœur de métier', romeAsTask: 'Tâche', romeAsComp: 'Compétence', romeImportAs: 'Importer comme',
+    romeSV: 'Savoirs', romeSVHint: 'Non cochés. Ne gardez que les savoirs dont vos tâches ont vraiment besoin.',
+    romeCert: 'Certifications et habilitations',
+    romeCertWarn: 'N’exigez un diplôme ou une habilitation que si la loi l’impose ou si le poste en a réellement besoin. Exiger un diplôme ou une école précise peut écarter des personnes qui ont acquis les mêmes connaissances autrement (Défenseur des droits, 2019).',
+    romeSE: 'Savoir-être professionnels', romeSEWarn: 'Définissez chacun comme un comportement observable dans ce poste ; sinon, chaque référent le comprendra à sa façon.',
+    romeAlready: 'déjà dans le projet', romeTickCore: 'Cocher le cœur de métier', romeTickNone: 'Tout décocher',
+    romeDoImport: 'Importer {n} éléments', romeImported: '{a} éléments importés ({s} déjà dans le projet). Précisez maintenant chacun d’eux.',
+    romeDefPh: 'Décrivez le comportement attendu dans ce poste (avant la notation).',
+    romeSource: 'Fiche ROME {code}', romeSourceNote: 'Fiche ROME {code} (version {v})',
+    rRome: 'Fiche ROME', romeAttribution: 'Source : France Travail, ROME 4.0 version {v}{date}, Licence Ouverte.',
+    months: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'],
     entryNoteLabel: 'ⓘ Repère : la période d’essai',
     entryNote: 'Repère : en France, la période d’essai permet à l’employeur « d’évaluer les compétences du salarié dans son travail » (art. L. 1221-20 du Code du travail). Sa durée maximale est de 2 mois pour les ouvriers et employés, 3 mois pour les agents de maîtrise et techniciens, et 4 mois pour les cadres (art. L. 1221-19). Elle peut être renouvelée une fois si un accord de branche étendu le prévoit (art. L. 1221-21). Votre convention collective ou le contrat de travail peuvent prévoir des durées plus courtes (art. L. 1221-22). Une compétence que la personne peut apprendre pendant ou après l’essai ne devrait pas être notée « Dès le premier jour ».',
     entryNoteDate: '21/11/2026',
     scales: {
       taskImp: { label: 'Importance', q: 'Quelle est l’importance de cette tâche pour le poste ?', opts: ['Non réalisée', 'Pas importante', 'Un peu importante', 'Importante', 'Très importante', 'Extrêmement importante'] },
-      taskFreq: { label: 'Fréquence', q: 'À quelle fréquence cette tâche est-elle réalisée ?', opts: ['Non réalisée', 'Une à quelques fois par an', 'Une à quelques fois par mois', 'Une à quelques fois par semaine', 'Une à quelques fois par jour', 'Une ou plusieurs fois par heure'] },
+      taskFreq: { label: 'Fréquence', q: 'À quelle fréquence cette tâche est-elle réalisée ?', opts: ['Non réalisée', 'Une à quelques fois par an', 'Une à quelques fois par mois', 'Une à quelques fois par semaine', 'Une à quelques fois par jour', 'Une ou plusieurs fois par heure'], short: ['Non réalisée', 'Quelques fois par an', 'Quelques fois par mois', 'Quelques fois par semaine', 'Quelques fois par jour', 'Plusieurs fois par heure'] },
       compImp: { label: 'Importance', q: 'Quelle est l’importance de cette compétence pour bien tenir le poste ?', opts: ['Sans objet', 'Pas importante', 'Un peu importante', 'Importante', 'Très importante', 'Extrêmement importante'] },
-      compEntry: { label: 'Besoin à l’embauche', q: 'À quel moment cette compétence est-elle nécessaire pour bien tenir le poste ?', opts: ['Sans objet', 'Dès le premier jour', 'À acquérir dans les 3 premiers mois', 'À acquérir entre le 4e et le 6e mois', 'À acquérir après les 6 premiers mois'] },
+      compEntry: { label: 'Besoin à l’embauche', q: 'À quel moment cette compétence est-elle nécessaire pour bien tenir le poste ?', opts: ['Sans objet', 'Dès le premier jour', 'À acquérir dans les 3 premiers mois', 'À acquérir entre le 4e et le 6e mois', 'À acquérir après les 6 premiers mois'], short: ['Sans objet', 'Dès le premier jour', 'Dans les 3 premiers mois', 'Entre 4 et 6 mois', 'Après 6 mois'] },
       compDV: { label: 'Capacité à départager', q: 'Dans quelle mesure cette compétence permet-elle de distinguer les salariés qui excellent de ceux dont le travail est tout juste acceptable ?', opts: ['Sans objet', 'Pas utile', 'Un peu utile', 'Utile', 'Très utile', 'Extrêmement utile'] },
       link: { label: 'Lien tâche-compétence', q: 'Quelle est l’importance de cette compétence pour bien réaliser cette tâche ?', opts: ['Sans objet', 'Pas importante', 'Un peu importante', 'Importante', 'Très importante', 'Extrêmement importante'] }
     }
@@ -524,7 +650,7 @@ if (typeof document !== 'undefined') (function () {
   function store() { try { localStorage.setItem(p.raterMode ? RKEY : KEY, JSON.stringify(p)); if (!p.raterMode) localStorage.removeItem(RKEY); } catch (e) {} }
   function load() { try { var s = localStorage.getItem(RKEY) || localStorage.getItem(KEY); return s ? Core.normalize(JSON.parse(s)) : null; } catch (e) { return null; } }
   function toast(msg) { var el = $('toast'); el.textContent = msg; el.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(function () { el.style.display = 'none'; }, 2600); }
-  function modal(html) { $('modalBox').innerHTML = html; $('modal').classList.add('show'); }
+  function modal(html, wide) { $('modalBox').innerHTML = html; $('modalBox').classList.toggle('wide', !!wide); $('modal').classList.add('show'); }
   function closeModal() { $('modal').classList.remove('show'); }
   var pendingYes = null;
   function confirmBox(msg, yes) { pendingYes = yes; modal('<p>' + esc(msg) + '</p><div class="row" style="justify-content:flex-end"><button data-act="closeModal">' + t('cancel') + '</button><button class="primary" data-act="confirmYes">' + t('yesContinue') + '</button></div>'); }
@@ -571,7 +697,8 @@ if (typeof document !== 'undefined') (function () {
       (keys.indexOf('compEntry') >= 0 ? entryNote() : '');
   }
   function rsel(kind, id, field, scale, val, short, label) {
-    return '<select data-rate="' + kind + ':' + id + ':' + field + '" aria-label="' + esc(label) + '"><option value="">–</option>' + sc(scale).opts.map(function (o, i) { return '<option value="' + i + '"' + (val === i ? ' selected' : '') + '>' + (short ? i : i + ' – ' + o) + '</option>'; }).join('') + '</select>';
+    var s = sc(scale), shown = s.short || s.opts, tip = typeof val === 'number' && s.opts[val] !== undefined ? ' title="' + esc(val + ' – ' + s.opts[val]) + '"' : '';
+    return '<select data-rate="' + kind + ':' + id + ':' + field + '" aria-label="' + esc(label) + '"' + tip + '><option value="">–</option>' + s.opts.map(function (o, i) { return '<option value="' + i + '" title="' + esc(i + ' – ' + o) + '"' + (val === i ? ' selected' : '') + '>' + (short ? i : i + ' – ' + shown[i]) + '</option>'; }).join('') + '</select>';
   }
   function raterPicker() {
     if (p.raterMode) return '';
@@ -587,11 +714,122 @@ if (typeof document !== 'undefined') (function () {
   function need(msg) { return '<div class="card"><p>' + msg + '</p></div>'; }
   function sourceList(id) { return '<datalist id="' + id + '">' + t('sourceOptions').map(function (o) { return '<option>' + esc(o) + '</option>'; }).join('') + '</datalist>'; }
 
+
+  // ---------- ROME (France Travail's reference of occupations) ----------
+  // The data lives in data/rome/ as plain scripts. They are added with <script> tags only when the panel is opened:
+  // that works on a web server and from a file opened on the disk, and nothing is sent anywhere.
+  var ROME = { base: 'data/rome/', cur: null, meta: null, index: null, folded: null, fiches: {}, ui: { open: false, q: '', code: null, status: '' } };
+  window.OJA_ROME = {
+    current: function (o) { ROME.cur = o; }, version: function (o) { ROME.meta = o; },
+    index: function (o) { ROME.index = o; ROME.meta = ROME.meta || o.meta; ROME.folded = o.titles.map(function (r) { return Core.fold(r[0]); }); },
+    add: function (code, o) { ROME.fiches[code] = o; }
+  };
+  var romeScripts = {};
+  function loadScript(src, done) {
+    if (romeScripts[src] === true) return done(null);
+    var el = document.createElement('script'); el.src = src; el.async = true;
+    el.onload = function () { romeScripts[src] = true; done(null); };
+    el.onerror = function () { el.remove(); done(new Error(src)); };
+    document.head.appendChild(el);
+  }
+  function romeDir(v) { return ROME.base + 'v' + (v || (ROME.cur && ROME.cur.version)) + '/'; }
+  function romeLoadIndex(cb) {
+    if (ROME.index) return cb(null);
+    loadScript(ROME.base + 'current.js', function (e) {
+      if (e || !ROME.cur) return cb(e || new Error('current.js'));
+      loadScript(romeDir() + 'index.js', function (e2) { cb(e2 || (ROME.index ? null : new Error('index.js'))); });
+    });
+  }
+  // A profile's file for the version recorded in the project when there is one, so older projects keep their own wording.
+  function romeLoadFiche(code, v, cb) {
+    if (ROME.fiches[code] && (!v || !ROME.cur || String(v) === String(ROME.cur.version))) return cb(null, ROME.fiches[code]);
+    var go = function () { loadScript(romeDir(v) + code + '.js', function (e) { cb(e || (ROME.fiches[code] ? null : new Error(code)), ROME.fiches[code]); }); };
+    if (ROME.cur || v) go(); else loadScript(ROME.base + 'current.js', function (e) { if (e) return cb(e); go(); });
+  }
+  function romeMonth(iso) { var m = /^(\d{4})-(\d{2})/.exec(iso || ''); return m ? ' (' + t('months')[+m[2] - 1] + ' ' + m[1] + ')' : ''; }
+  function romeAttribution() {
+    if (!Core.romeUsed(p)) return '';
+    var v = Core.romeVersion(p), pub = (p.job.rome && p.job.rome.published) || (ROME.meta && String(ROME.meta.version) === v ? ROME.meta.published : '');
+    return t('romeAttribution', { v: v || '?', date: romeMonth(pub) });
+  }
+  function ctxText(ctx) {
+    var g = {}, order = [];
+    (ctx || []).forEach(function (c) { if (!g[c[0]]) { g[c[0]] = []; order.push(c[0]); } g[c[0]].push(c[1]); });
+    return order.map(function (k) { return '<div><b>' + esc(k) + '</b> – ' + esc(g[k].join(' ; ')) + '</div>'; }).join('');
+  }
+  function romeResults() {
+    var q = ROME.ui.q;
+    if (!ROME.index || !q.trim()) return '';
+    var r = Core.romeSearch(ROME.index, ROME.folded, q, 30);
+    if (!r.total) return '<p class="hint">' + t('romeNoResult') + '</p>';
+    return '<ul class="rome-res">' + r.list.map(function (h) {
+      var other = Core.fold(h.label) !== Core.fold(h.title);
+      return '<li><button data-act="romePick" data-code="' + h.code + '"><span class="code">' + h.code + '</span>' + esc(h.title) + (other ? '<div class="hint">' + esc(h.label) + (h.rare ? ' (' + t('romeRareTitle') + ')' : '') + '</div>' : '') + '</button></li>';
+    }).join('') + '</ul>' + (r.total > r.list.length ? '<p class="hint">' + t('romeMore', { n: r.list.length, t: r.total }) + '</p>' : '');
+  }
+  function romeFicheHtml(f) {
+    return '<div class="rome-fiche"><h3 style="margin:4px 0;color:var(--navy)">' + f.code + ' – ' + esc(f.t) + '</h3>' + (f.dom ? '<div class="hint">' + esc(f.dom) + '</div>' : '') +
+      '<dl><dt>' + t('romeDefinition') + '</dt><dd>' + esc(f.d) + '</dd>' +
+      (f.acc ? '<dt>' + t('romeAccess') + '</dt><dd>' + esc(f.acc) + '<div class="banner" style="margin:8px 0 0">' + t('romeAccessWarn') + '</div></dd>' : '') +
+      (f.ctx && f.ctx.length ? '<dt>' + t('romeContexts') + '</dt><dd class="hint">' + ctxText(f.ctx) + '</dd>' : '') +
+      (f.a && f.a.length ? '<dt>' + t('romeTitles') + '</dt><dd class="hint">' + esc(f.a.join(' · ')) + '</dd>' : '') + '</dl></div>';
+  }
+  function romePanel() {
+    if (p.raterMode) return '';
+    var u = ROME.ui, jr = p.job.rome, head = '<b>' + t('romeTitle') + '</b><p class="hint" style="margin:4px 0 10px">' + t('romeSub') + '</p>';
+    if (!u.open) {
+      return '<div class="card no-print" id="romePanel">' + head + (jr && jr.code ? '<p style="margin:0 0 10px">' + t('romeChosen') + ' <b>' + esc(jr.code) + ' – ' + esc(jr.title) + '</b></p>' +
+        '<div class="row"><button class="primary" data-act="romeImport">' + t('romeImportBtn') + '</button><button data-act="romeViewChosen">' + t('romeView') + '</button><button data-act="romeOpen">' + t('romeChange') + '</button></div>'
+        : '<div class="row"><button data-act="romeOpen">' + t('romeOpen') + '</button></div>') + '</div>';
+    }
+    var body;
+    if (u.status === 'loading') body = '<p class="hint">' + t('romeLoading') + '</p>';
+    else if (u.status === 'error') body = '<div class="banner">' + t('romeLoadFail') + '</div>';
+    else if (u.code && ROME.fiches[u.code]) body = romeFicheHtml(ROME.fiches[u.code]) + '<div class="row"><button class="primary" data-act="romeUse">' + t('romeUse') + '</button><button data-act="romeImport">' + t('romeImportBtn') + '</button>' + (ROME.index ? '<button data-act="romeBack">' + t('romeBack') + '</button>' : '') + '</div>';
+    else body = '<label for="romeQ">' + t('romeSearchLabel') + '</label><input type="text" id="romeQ" data-rome="q" autocomplete="off" placeholder="' + esc(t('romeSearchPh')) + '" value="' + esc(u.q) + '">' +
+      '<p class="hint" style="margin:4px 0 0">' + t('romeSearchHint', { n: ROME.index ? ROME.index.titles.length.toLocaleString(ui === 'fr' ? 'fr-FR' : 'en') : '', f: ROME.index ? ROME.index.fiches.length.toLocaleString(ui === 'fr' ? 'fr-FR' : 'en') : '' }) + '</p><div id="romeResults">' + romeResults() + '</div>';
+    return '<div class="card no-print" id="romePanel"><div class="row" style="justify-content:space-between;align-items:flex-start"><div style="flex:1">' + head + '</div><button class="small" data-act="romeClose">' + t('romeClose') + '</button></div>' + body + '</div>';
+  }
+  function rerenderRome() { var el = $('romePanel'); if (el) el.outerHTML = romePanel(); else render(); var q = $('romeQ'); if (q && document.activeElement !== q && !ROME.ui.code) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }
+  function romeRecord(f) {
+    var v = String((ROME.cur && ROME.cur.version) || (ROME.meta && ROME.meta.version) || '');
+    p.job.rome = { code: f.code, title: f.t, version: v, published: (ROME.meta && ROME.meta.published) || '', domain: f.dom || '', ctx: f.ctx || [] };
+    var note = t('romeSourceNote', { code: f.code, v: v });
+    if ((p.job.sources || '').indexOf(note) < 0) p.job.sources = p.job.sources ? p.job.sources.replace(/\s+$/, '') + (ui === 'fr' ? '\u00a0; ' : '; ') + note : note;
+    if (!p.job.family) p.job.family = (f.dom ? f.dom + ' · ' : '') + 'ROME ' + f.code;
+    if (!p.job.title) p.job.title = f.t;
+  }
+  function importDialog(f) {
+    var items = Core.romeItems(f), have = {};
+    p.tasks.concat(p.competencies).forEach(function (x) { if (x.origin && x.origin.type === 'rome') have[x.origin.ogr] = true; });
+    ROME.ui.items = items; ROME.ui.importCode = f.code;
+    function row(it) {
+      var done = have[it.ogr];
+      return '<tr class="' + (done ? 'done' : '') + '"><td><input type="checkbox" data-rk="' + it.key + '"' + (it.on && !done ? ' checked' : '') + (done ? ' disabled' : '') + ' aria-label="' + esc(it.label) + '"></td><td>' + esc(it.label) + (it.core ? ' <span class="badge b-good">' + t('romeCore') + '</span>' : '') + (done ? ' <span class="hint">(' + t('romeAlready') + ')</span>' : '') + '</td>' +
+        (it.group === 'sf' ? '<td style="width:150px"><select data-ras="' + it.key + '" aria-label="' + esc(t('romeImportAs')) + '"' + (done ? ' disabled' : '') + '><option value="task">' + t('romeAsTask') + '</option><option value="comp">' + t('romeAsComp') + '</option></select></td>' : '') + '</tr>';
+    }
+    function bycat(list) { var g = {}, order = []; list.forEach(function (it) { if (!g[it.cat]) { g[it.cat] = []; order.push(it.cat); } g[it.cat].push(it); }); return order.map(function (c) { return (c ? '<h4>' + esc(c) + '</h4>' : '') + '<table>' + g[c].map(row).join('') + '</table>'; }).join(''); }
+    var G = function (g) { return items.filter(function (it) { return it.group === g; }); };
+    var html = '<div class="rome-imp"><h2 style="margin-top:0">' + t('romeImportTitle', { code: f.code }) + '</h2><p class="hint" style="margin:0 0 4px"><b>' + esc(f.t) + '</b></p><p class="hint">' + t('romeImportLead') + '</p>' +
+      '<div class="row"><button class="small" data-act="romeTickCore">' + t('romeTickCore') + '</button><button class="small" data-act="romeTickNone">' + t('romeTickNone') + '</button></div>' +
+      '<h3>' + t('romeSF') + '</h3><p class="hint" style="margin:0">' + t('romeSFHint') + '</p>' + bycat(G('sf')) +
+      (G('sv').length ? '<h3>' + t('romeSV') + '</h3><p class="hint" style="margin:0">' + t('romeSVHint') + '</p>' + bycat(G('sv')) : '') +
+      (G('cert').length ? '<h3>' + t('romeCert') + '</h3><div class="banner" style="margin:4px 0">' + t('romeCertWarn') + '</div>' + bycat(G('cert')) : '') +
+      (G('se').length ? '<h3>' + t('romeSE') + '</h3><div class="banner" style="margin:4px 0">' + t('romeSEWarn') + '</div>' + bycat(G('se')) : '') +
+      '<div class="row sticky" style="justify-content:flex-end"><button data-act="closeModal">' + t('cancel') + '</button><button class="primary" data-act="romeDoImport" id="romeDo"></button></div></div>';
+    modal(html, true); romeCount();
+  }
+  function romeCount() { var n = document.querySelectorAll('#modalBox input[data-rk]:checked').length, b = $('romeDo'); if (b) { b.textContent = t('romeDoImport', { n: n }); b.disabled = !n; } }
+  function withFiche(code, v, then) {
+    ROME.ui.status = 'loading';
+    romeLoadFiche(code, v, function (e, f) { ROME.ui.status = e ? 'error' : ''; if (e) { ROME.ui.open = true; rerenderRome(); return; } then(f); });
+  }
+
   var views = {
     job: function () {
       return '<h1>' + t('jobTitle') + '</h1><p class="lead">' + t('jobLead') + '</p>' +
         '<div class="card"><div class="grid2">' + field(t('fJobTitle'), 'job.title', p.job.title) + field(t('fOrg'), 'job.org', p.job.org) + field(t('fFamily'), 'job.family', p.job.family) + field(t('fAnalyst'), 'job.analyst', p.job.analyst) + field(t('fDate'), 'job.date', p.job.date, 'date') + '</div>' +
-        '<div style="margin-top:12px"><label>' + t('fSources') + '</label><textarea data-path="job.sources" rows="3" placeholder="' + esc(t('sourcesPh')) + '">' + esc(p.job.sources) + '</textarea><p class="hint">' + t('sourcesHint') + '</p></div></div>' +
+        '<div style="margin-top:12px"><label>' + t('fSources') + '</label><textarea data-path="job.sources" rows="3" placeholder="' + esc(t('sourcesPh')) + '">' + esc(p.job.sources) + '</textarea><p class="hint">' + t('sourcesHint') + '</p></div></div>' + romePanel() +
         '<details class="card"><summary><b>' + t('cutoffs') + '</b> <span class="hint">' + t('cutoffsHint') + '</span></summary><div class="grid2" style="margin-top:12px">' +
         ['taskImp', 'taskFreq', 'rareImp', 'compImp', 'compEntry', 'compDV', 'link'].map(cutField).join('') + '</div></details>' +
         '<div class="row"><button class="primary" data-view="tasks">' + t('nextTasks') + '</button></div>';
@@ -606,7 +844,7 @@ if (typeof document !== 'undefined') (function () {
     competencies: function () {
       return '<h1>' + t('compsTitle') + '</h1><p class="lead">' + t('compsLead') + '</p>' +
         '<div class="scroll"><table><tr><th class="num">' + t('colNo') + '</th><th style="width:22%">' + t('colComp') + '</th><th>' + t('colDef') + '</th><th style="width:13%">' + t('colKind') + '</th><th style="width:17%">' + t('colSource') + '</th><th class="no-print" style="width:40px"></th></tr>' +
-        p.competencies.map(function (k, i) { return '<tr><td class="num">' + (i + 1) + '</td><td><input type="text" data-path="competencies.' + i + '.name" value="' + esc(k.name) + '" aria-label="' + esc(t('ariaComp', { n: i + 1 })) + '">' + (Core.needsReview(k) ? '<span class="badge b-warn" title="' + esc(t('romeFlag')) + '">' + esc(t('romeShort')) + '</span>' : '') + '</td><td><textarea rows="2" data-path="competencies.' + i + '.definition" aria-label="' + esc(t('ariaCompDef', { n: i + 1 })) + '">' + esc(k.definition) + '</textarea></td><td><select data-path="competencies.' + i + '.kind" aria-label="' + esc(t('ariaCompKind', { n: i + 1 })) + '">' + t('kinds').map(function (o) { return '<option value="' + o[0] + '"' + ((k.kind || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></td><td><input type="text" list="sources2" data-path="competencies.' + i + '.source" value="' + esc(k.source) + '" aria-label="' + esc(t('ariaCompSource', { n: i + 1 })) + '"></td><td class="no-print"><button class="del" data-act="delComp" data-i="' + i + '" title="' + esc(t('removeComp')) + '">✕</button></td></tr>'; }).join('') +
+        p.competencies.map(function (k, i) { return '<tr><td class="num">' + (i + 1) + '</td><td><input type="text" data-path="competencies.' + i + '.name" value="' + esc(k.name) + '" aria-label="' + esc(t('ariaComp', { n: i + 1 })) + '">' + (Core.needsReview(k) ? '<span class="badge b-warn" title="' + esc(t('romeFlag')) + '">' + esc(t('romeShort')) + '</span>' : '') + '</td><td><textarea rows="2" data-path="competencies.' + i + '.definition" aria-label="' + esc(t('ariaCompDef', { n: i + 1 })) + '"' + (k.origin && k.origin.type === 'rome' ? ' placeholder="' + esc(t('romeDefPh')) + '"' : '') + '>' + esc(k.definition) + '</textarea></td><td><select data-path="competencies.' + i + '.kind" aria-label="' + esc(t('ariaCompKind', { n: i + 1 })) + '">' + t('kinds').map(function (o) { return '<option value="' + o[0] + '"' + ((k.kind || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></td><td><input type="text" list="sources2" data-path="competencies.' + i + '.source" value="' + esc(k.source) + '" aria-label="' + esc(t('ariaCompSource', { n: i + 1 })) + '"></td><td class="no-print"><button class="del" data-act="delComp" data-i="' + i + '" title="' + esc(t('removeComp')) + '">✕</button></td></tr>'; }).join('') +
         '</table></div>' + sourceList('sources2') +
         '<div class="row" style="margin-top:10px"><button data-act="addComp">' + t('addComp') + '</button><button class="primary" data-view="raters">' + t('nextRaters') + '</button></div>';
     },
@@ -662,8 +900,10 @@ if (typeof document !== 'undefined') (function () {
       finalC.forEach(function (k) { if (!p.decisions[k]) p.decisions[k] = { assess: true, use: '', note: '' }; });
       var html = '<h1>' + (p.raterMode ? '' : '8. ') + t('reportTitle') + '</h1><p class="lead no-print">' + t('reportLead') + '</p>' +
         '<div class="row no-print"><button class="primary" data-act="print">' + t('printBtn') + '</button><button data-act="csv">' + t('csvBtn') + '</button><button data-act="saveFile">' + t('saveProject') + '</button></div>' +
-        '<div class="card"><table><tr><td style="width:22%"><b>' + t('fJobTitle') + '</b></td><td>' + esc(p.job.title) + '</td><td style="width:18%"><b>' + t('fOrg') + '</b></td><td>' + esc(p.job.org) + '</td></tr><tr><td><b>' + t('fFamily') + '</b></td><td>' + esc(p.job.family) + '</td><td><b>' + t('fAnalyst') + '</b></td><td>' + esc(p.job.analyst) + '</td></tr><tr><td><b>' + t('fDate') + '</b></td><td>' + esc(fdate(p.job.date)) + '</td><td><b>' + t('colRaters') + '</b></td><td>' + (p.raters.map(function (r) { return esc(r.name) + (r.title ? ' (' + esc(r.title) + ')' : ''); }).join('; ') || '–') + '</td></tr><tr><td><b>' + t('infoUsed') + '</b></td><td colspan="3">' + esc(p.job.sources) + '</td></tr></table></div>' +
-        '<h2>' + t('hMethod') + '</h2><p>' + t('methodText', cuts()) + '</p>' + (t('entryNote') ? '<p class="hint">ⓘ ' + t('entryNote') + '</p>' : '');
+        '<div class="card"><table><tr><td style="width:22%"><b>' + t('fJobTitle') + '</b></td><td>' + esc(p.job.title) + '</td><td style="width:18%"><b>' + t('fOrg') + '</b></td><td>' + esc(p.job.org) + '</td></tr><tr><td><b>' + t('fFamily') + '</b></td><td>' + esc(p.job.family) + '</td><td><b>' + t('fAnalyst') + '</b></td><td>' + esc(p.job.analyst) + '</td></tr><tr><td><b>' + t('fDate') + '</b></td><td>' + esc(fdate(p.job.date)) + '</td><td><b>' + t('colRaters') + '</b></td><td>' + (p.raters.map(function (r) { return esc(r.name) + (r.title ? ' (' + esc(r.title) + ')' : ''); }).join('; ') || '–') + '</td></tr><tr><td><b>' + t('infoUsed') + '</b></td><td colspan="3">' + esc(p.job.sources) + '</td></tr>' +
+        (p.job.rome && p.job.rome.code ? '<tr><td><b>' + t('rRome') + '</b></td><td colspan="3">' + esc(p.job.rome.code) + ' – ' + esc(p.job.rome.title) + (p.job.rome.ctx && p.job.rome.ctx.length ? '<div class="hint" style="margin-top:4px"><b>' + t('romeContexts') + '</b>' + ctxText(p.job.rome.ctx) + '</div>' : '') + '</td></tr>' : '') + '</table></div>' +
+        '<h2>' + t('hMethod') + '</h2><p>' + t('methodText', cuts()) + '</p>' + (t('entryNote') ? '<p class="hint">ⓘ ' + t('entryNote') + '</p>' : '') +
+        (Core.romeUsed(p) ? '<p class="hint" id="romeAttrib">' + esc(romeAttribution()) + '</p>' : '');
       if (!done) return html + need(t('needFinal')) + '<h2>' + t('resultsSoFar') + '</h2><p class="hint">' + t('soFar', { a: tr.filter(function (x) { return x.critical; }).length, b: tr.length, c: cr.filter(function (k) { return k.critical; }).length, d: cr.length }) + '</p>';
       html += '<h2>' + t('hFinalTasks') + '</h2><table><tr><th class="num">' + t('colNo') + '</th><th>' + t('colTask') + '</th><th>' + t('colSource') + '</th><th class="c">' + sc('taskImp').label + '</th><th class="c">' + sc('taskFreq').label + '</th><th>' + t('colLinkedComps') + '</th></tr>' +
         finalT.map(function (id) { var x = byId(tr, id); return '<tr><td class="num">' + x.no + '</td><td>' + esc(x.text) + (x.kept ? ' <span class="hint">' + t('keptNote') + '</span>' : '') + romeBadge(byId(p.tasks, id)) + '</td><td>' + esc(x.source) + '</td><td class="c">' + fmt(x.imp) + '</td><td class="c">' + fmt(x.freq) + '</td><td>' + L.comps.filter(function (k) { return L.cells[id + '|' + k].linked; }).map(function (k) { return esc(byId(cr, k).name); }).join(', ') + '</td></tr>'; }).join('') + '</table>' +
@@ -701,6 +941,7 @@ if (typeof document !== 'undefined') (function () {
     Core.compResults(p).forEach(function (k) { var d = p.decisions[k.id] || {}, fin = L.finalComps.indexOf(k.id) >= 0; rows.push([k.no, k.name, k.definition, k.source, k.n, fmt(k.imp), fmt(k.entry), fmt(k.dv), yn(k.critical), yn(fin), fin ? yn(d.assess) : '', fin ? useLabel(d.use) : '', fin ? d.note : '']); });
     rows.push([], [t('csvLink')], [t('csvTask')].concat(L.comps.map(function (k) { return 'C' + compNo(k) + ' ' + byId(p.competencies, k).name; })));
     L.tasks.forEach(function (x) { rows.push(['T' + taskNo(x)].concat(L.comps.map(function (k) { return fmt(L.cells[x + '|' + k].avg); }))); });
+    if (Core.romeUsed(p)) rows.push([], [romeAttribution()]);
     return Core.toCSV(rows, ui);
   }
   function setPath(path, val) { var ks = path.split('.'), o = p; for (var i = 0; i < ks.length - 1; i++) { if (o[ks[i]] === undefined) o[ks[i]] = {}; o = o[ks[i]]; } o[ks[ks.length - 1]] = val; }
@@ -733,7 +974,33 @@ if (typeof document !== 'undefined') (function () {
     delRater: function (el) { var i = +el.dataset.i; confirmBox(t('confirmDelRater'), function () { p.raters.splice(i, 1); state.raterId = null; store(); render(); }); },
     packet: function (el) { var r = byId(p.raters, el.dataset.id), round = +el.dataset.round; exportFile(slug(p.job.title) + t('fnFor') + Core.slug(r.name, t('raterDefault')) + t('fnRound') + round + '.json', JSON.stringify(Core.raterPacket(p, r.id, round), null, 1), 'application/json'); },
     print: function () { if (framed) return toast(t('noPrint')); window.print(); },
-    csv: function () { exportFile(slug(p.job.title) + t('fnResults'), '﻿' + csv(), 'text/csv'); }
+    csv: function () { exportFile(slug(p.job.title) + t('fnResults'), '﻿' + csv(), 'text/csv'); },
+    romeOpen: function () {
+      ROME.ui.open = true; ROME.ui.code = null; ROME.ui.status = ROME.index ? '' : 'loading'; rerenderRome();
+      if (!ROME.index) romeLoadIndex(function (e) { ROME.ui.status = e ? 'error' : ''; rerenderRome(); });
+    },
+    romeClose: function () { ROME.ui.open = false; ROME.ui.code = null; ROME.ui.status = ''; rerenderRome(); },
+    romeBack: function () { ROME.ui.code = null; rerenderRome(); },
+    romePick: function (el) { var code = el.dataset.code; withFiche(code, null, function () { ROME.ui.code = code; rerenderRome(); }); rerenderRome(); },
+    romeViewChosen: function () { var jr = p.job.rome; ROME.ui.open = true; withFiche(jr.code, jr.version, function () { ROME.ui.code = jr.code; rerenderRome(); }); rerenderRome(); },
+    romeUse: function () { var f = ROME.fiches[ROME.ui.code]; if (!f) return; romeRecord(f); ROME.ui.open = false; ROME.ui.code = null; store(); render(); toast(t('romeUsed')); },
+    romeImport: function () {
+      var code = ROME.ui.open && ROME.ui.code ? ROME.ui.code : (p.job.rome && p.job.rome.code), v = ROME.ui.open && ROME.ui.code ? null : (p.job.rome && p.job.rome.version);
+      if (!code) return;
+      withFiche(code, v, function (f) { rerenderRome(); importDialog(f); });
+    },
+    romeTickCore: function () { Array.prototype.forEach.call(document.querySelectorAll('#modalBox input[data-rk]:not([disabled])'), function (c) { var it = ROME.ui.items.filter(function (x) { return x.key === c.dataset.rk; })[0]; c.checked = !!(it && it.core); }); romeCount(); },
+    romeTickNone: function () { Array.prototype.forEach.call(document.querySelectorAll('#modalBox input[data-rk]'), function (c) { c.checked = false; }); romeCount(); },
+    romeDoImport: function () {
+      var f = ROME.fiches[ROME.ui.importCode]; if (!f) return;
+      var chosen = ROME.ui.items.filter(function (it) { var c = document.querySelector('#modalBox input[data-rk="' + it.key + '"]'); return c && c.checked && !c.disabled; }).map(function (it) {
+        var sel = document.querySelector('#modalBox select[data-ras="' + it.key + '"]'); return Object.assign({}, it, { as: sel ? sel.value : it.as });
+      });
+      if (!p.job.rome || p.job.rome.code !== f.code) romeRecord(f);
+      var r = Core.importRome(p, f.code, p.job.rome.version, chosen, t('romeSource', { code: f.code }));
+      closeModal(); ROME.ui.open = false; ROME.ui.code = null; store();
+      state.view = chosen.some(function (x) { return x.as === 'task'; }) ? 'tasks' : 'competencies'; render(); toast(t('romeImported', { a: r.added, s: r.skipped }));
+    }
   };
   function focusLast(sel) { var els = document.querySelectorAll(sel); if (els.length) els[els.length - 1].focus(); }
   document.addEventListener('click', function (e) {
@@ -744,6 +1011,9 @@ if (typeof document !== 'undefined') (function () {
   });
   function onEdit(e) {
     var el = e.target;
+    if (el.dataset.rome === 'q') { if (e.type !== 'input') return; ROME.ui.q = el.value; var rr = $('romeResults'); if (rr) rr.innerHTML = romeResults(); return; }
+    if (el.dataset.rk) { romeCount(); return; }
+    if (el.dataset.ras) return;
     if (el.dataset.path) {
       setPath(el.dataset.path, el.dataset.check ? el.checked : el.dataset.num ? (el.value === '' ? Core.DEFAULT_CUTOFFS[el.dataset.path.split('.')[1]] : Number(el.value)) : el.value);
       // Editing the wording of an item imported from the ROME marks it as reviewed.
@@ -756,6 +1026,8 @@ if (typeof document !== 'undefined') (function () {
     if (el.dataset.rate) {
       var parts = el.dataset.rate.split(':'), r = curRater(); if (!r) return;
       var val = el.value === '' ? undefined : Number(el.value);
+      var scl = sc({ t: { imp: 'taskImp', freq: 'taskFreq' }, c: { imp: 'compImp', entry: 'compEntry', dv: 'compDV' }, l: { v: 'link' } }[parts[0]][parts[2]]);
+      if (scl) el.title = val === undefined ? '' : val + ' – ' + scl.opts[val];
       if (parts[0] === 'l') { if (val === undefined) delete r.l[parts[1]]; else r.l[parts[1]] = val; }
       else { var o = r[parts[0]][parts[1]] = r[parts[0]][parts[1]] || {}; if (val === undefined) delete o[parts[2]]; else o[parts[2]] = val; }
       store(); progress();

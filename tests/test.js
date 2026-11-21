@@ -140,4 +140,117 @@ assert.ok(!/ [:;?!»]|« /.test(JSON.stringify(I18N.fr)));                      
 assert.ok(I18N.fr.entryNote.includes('L.\u00a01221-20') || I18N.fr.entryNote.includes('L. 1221-20'));
 assert.strictEqual(I18N.en.entryNote, '');
 
+// ---------- ROME (phase 2) ----------
+const vm = require('vm');
+function romeData(file) { const box = { F: {}, I: null, C: null, V: null }; const ctx = { OJA_ROME: { add: (c, o) => { box.F[c] = o; }, index: o => { box.I = o; }, current: o => { box.C = o; }, version: o => { box.V = o; } } }; vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'data', 'rome', file), 'utf8'), ctx); return JSON.parse(JSON.stringify(box)); } // copied out of the sandbox
+
+// The generated data: current version, the search index and the M1501 profile used by the French example.
+const cur = romeData('current.js').C;
+assert.strictEqual(cur.version, '62');
+const idx = romeData('v' + cur.version + '/index.js').I;
+assert.strictEqual(idx.fiches.length, 1923);
+assert.strictEqual(idx.titles.length, 14330);                                                  // every ROME job title, rarely used ones included
+assert.ok(idx.meta.attribution.fr.startsWith('Source : France Travail, ROME 4.0 version 62 (octobre 2026)'));
+const m1501 = romeData('v62/M1501.js').F.M1501;
+assert.strictEqual(m1501.t, 'Assistant / Assistante Ressources Humaines (RH)');
+assert.strictEqual(m1501.sf.length, 44);
+assert.strictEqual(m1501.sf.filter(x => x[3]).length, 11);                                    // 11 core savoir-faire in v62 (the plan said 10: it counted a truncated list)
+assert.strictEqual(m1501.se.length, 3); assert.strictEqual(m1501.cert.length, 5); assert.strictEqual(m1501.ctx.length, 9);
+assert.ok(m1501.d.includes('Ressources Humaines') && /é/.test(m1501.d));                    // decoded from cp1252, accents intact
+// Every ROME origin in the French example points to an item that exists in the generated M1501 data.
+const ogrs = new Set([].concat(m1501.sf.map(x => x[2]), m1501.sv.map(x => x[2]), m1501.cert.map(x => x[1]), m1501.se.map(x => x[1])));
+const exOrigins = fx.tasks.concat(fx.competencies).filter(x => x.origin).map(x => x.origin.ogr);
+assert.strictEqual(exOrigins.length, 17);
+assert.deepStrictEqual(exOrigins.filter(o => !ogrs.has(o)), []);
+assert.deepStrictEqual(fx.job.rome.ctx, m1501.ctx);                                            // the example's working context matches the data
+
+// Search: accent- and case-insensitive, by job title or ROME code.
+const folded = idx.titles.map(r => Core.fold(r[0]));
+assert.strictEqual(Core.fold('Chargé·e d’Œuvre'), 'charge·e d’oeuvre');
+assert.strictEqual(Core.romeSearch(idx, folded, 'assistant rh').list[0].code, 'M1501');
+assert.strictEqual(Core.romeSearch(idx, folded, 'ASSISTANTE RESSOURCES humaines').list[0].code, 'M1501');
+assert.strictEqual(Core.romeSearch(idx, folded, 'secretaire du service personnel').list[0].code, 'M1501'); // found through another job title
+assert.strictEqual(Core.romeSearch(idx, folded, 'M1507').list[0].code, 'M1507');
+assert.deepStrictEqual(Core.romeSearch(idx, folded, 'm15').list.slice(0, 2).map(h => h.code), ['M1501', 'M1502']);
+assert.strictEqual(Core.romeSearch(idx, folded, '   ').total, 0);
+
+// Items offered for import: core savoir-faire ticked as tasks; knowledge, certifications and savoir-être unticked.
+const its = Core.romeItems(m1501);
+assert.strictEqual(its.filter(x => x.group === 'sf').length, 44);
+assert.strictEqual(its.filter(x => x.on).length, 11);
+assert.ok(its.filter(x => x.on).every(x => x.group === 'sf' && x.core && x.as === 'task'));
+assert.ok(its.filter(x => x.group === 'cert').every(x => x.kind === 'certification' && !x.on));
+assert.ok(its.filter(x => x.group === 'se').every(x => x.kind === 'savoir-etre' && !x.on));
+assert.ok(its.filter(x => x.group === 'sv').every(x => x.kind === 'savoir' && !x.on));
+
+// Import: origin recorded, duplicates (same OGR code) skipped, savoir-faire can become a competency.
+const ip = Core.blank('fr');
+assert.strictEqual(Core.romeUsed(ip), false);
+const core = its.filter(x => x.on);
+let ir = Core.importRome(ip, 'M1501', '62', core, 'Fiche ROME M1501');
+assert.deepStrictEqual(ir, { added: 11, skipped: 0 });
+assert.strictEqual(ip.tasks.length, 11);
+assert.deepStrictEqual(ip.tasks[0].origin, { type: 'rome', code: 'M1501', ogr: core[0].ogr, version: '62', edited: false });
+assert.ok(ip.tasks.every(Core.needsReview)); assert.strictEqual(ip.tasks[0].source, 'Fiche ROME M1501');
+assert.strictEqual(Core.romeUsed(ip), true); assert.strictEqual(Core.romeVersion(ip), '62');
+const sfComp = Object.assign({}, its.find(x => x.group === 'sf' && !x.core), { as: 'comp' });
+const se0 = its.find(x => x.group === 'se'), cert0 = its.find(x => x.group === 'cert');
+ir = Core.importRome(ip, 'M1501', '62', core.concat([sfComp, se0, cert0]), 'Fiche ROME M1501');
+assert.deepStrictEqual(ir, { added: 3, skipped: 11 });
+assert.deepStrictEqual(ip.competencies.map(c => c.kind), ['savoir-faire', 'savoir-etre', 'certification']);
+assert.ok(ip.competencies.every(c => c.definition === '' && Core.needsReview(c)));
+assert.strictEqual(new Set(ip.tasks.concat(ip.competencies).map(x => x.id)).size, 14);          // unique ids
+// Imported projects survive a save and reopen.
+assert.deepStrictEqual(Core.normalize(JSON.parse(JSON.stringify(ip))).tasks, ip.tasks);
+
+// Build script on a small zip: cp1252 decoding, counts, and checks that fail loudly.
+function makeZip(entries) {
+  const locals = [], centrals = []; let off = 0;
+  entries.forEach(([name, data], k) => {
+    const nb = Buffer.from(name), deflate = k % 2 === 0, body = deflate ? zlib.deflateRawSync(data) : data;
+    const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(deflate ? 8 : 0, 8); lh.writeUInt32LE(body.length, 18); lh.writeUInt32LE(data.length, 22); lh.writeUInt16LE(nb.length, 26);
+    const ch = Buffer.alloc(46); ch.writeUInt32LE(0x02014b50, 0); ch.writeUInt16LE(20, 4); ch.writeUInt16LE(20, 6); ch.writeUInt16LE(deflate ? 8 : 0, 10); ch.writeUInt32LE(body.length, 20); ch.writeUInt32LE(data.length, 24); ch.writeUInt16LE(nb.length, 28); ch.writeUInt32LE(off, 42);
+    locals.push(lh, nb, body); centrals.push(ch, nb); off += 30 + nb.length + body.length;
+  });
+  const cd = Buffer.concat(centrals), end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10); end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(off, 16);
+  return Buffer.concat(locals.concat([cd, end]));
+}
+const zlib = require('zlib');
+const cp = s => Buffer.from(Array.from(s).map(ch => ({ 'é': 0xe9, 'è': 0xe8, '’': 0x92, 'œ': 0x9c, 'à': 0xe0 })[ch] || ch.charCodeAt(0)));
+const fichesJ = [{ numero: 1, rome: { code_rome: 'Z9901', intitule: 'Ébéniste d’œuvre', code_ogr: 1 }, appellations: [{ libelle: 'Menuisier d’art', code_ogr: 11 }], definition: 'Réalise des meubles.', acces_metier: 'CAP ébéniste.',
+  competences: { savoir_faire: { enjeux: [{ libelle: 'Fabrication', items: [{ libelle: 'Assembler des pièces', code_ogr: 101, coeur_metier: 'Principale' }, { libelle: 'Vérifier la qualité', code_ogr: 102, coeur_metier: null }] }] },
+    savoir_etre_professionnel: { enjeux: [{ libelle: 'Savoir-être professionnels', items: [{ libelle: 'Être rigoureux', code_ogr: 201 }] }] },
+    savoirs: { categories: [{ libelle: 'Certifications et habilitations', items: [{ libelle: 'CAP ébéniste', code_ogr: 301, coeur_metier: null }] }, { libelle: 'Normes et procédés', items: [{ libelle: 'Essences de bois', code_ogr: 302, coeur_metier: null }] }] } },
+  contextes_travail: [{ libelle: 'Lieux', items: [{ libelle: 'Atelier', code_ogr: 401 }] }], secteurs_activite: [], mobilites: [] }];
+const appsJ = [{ code_ogr: 1, libelle: 'Ébéniste d’œuvre', classification: 'PRINCIPALE', peu_usite: 'N', code_rome_parent: 'Z9901' }, { code_ogr: 11, libelle: 'Menuisier d’art', classification: 'SYNONYME', peu_usite: 'N', code_rome_parent: 'Z9901' }];
+const treeJ = { arbo_principale: [{ code_metier: 'Z', libelle: 'Test', liste_domaine_prof: [{ code_metier: 'Z99', libelle: 'Bois', liste_metier: [{ code_ogr: 1, code_rome: 'Z9901', libelle: 'Ébéniste d’œuvre' }] }] }] };
+const zipOK = makeZip([
+  ['version.txt', Buffer.from('Numero de version : 7\n\nDate de publication : 05/03/2027\n\nLe ROME passe ainsi à 1 métiers.', 'utf8')],
+  ['unix_fiche_emploi_metier_v407.json', cp(JSON.stringify(fichesJ))], ['unix_referentiel_appellation_v407.json', cp(JSON.stringify(appsJ))], ['unix_arborescence_principale_v407.json', cp(JSON.stringify(treeJ))]]);
+
+(async () => {
+  const B = await import(path.join(__dirname, '..', 'tools', 'build-rome.mjs'));
+  assert.strictEqual(B.decodeText(cp('Ébéniste d’œuvre')), 'Ébéniste d’œuvre');               // cp1252 bytes
+  assert.strictEqual(B.decodeText(Buffer.from('Ébéniste d’œuvre', 'utf8')), 'Ébéniste d’œuvre'); // UTF-8 still read as UTF-8
+  const r = B.buildRome({ zip: zipOK, expect: { fiches: 1, titles: 2 } });
+  assert.deepStrictEqual(r.stats, { version: '7', published: '2027-03-05', fiches: 1, titles: 2, principal: 1, usual: 1, rare: 0, rareTotal: 0, unplaced: 0, indexed: 2 });
+  const f = r.fiches.Z9901;
+  assert.strictEqual(f.t, 'Ébéniste d’œuvre'); assert.strictEqual(f.dom, 'Bois');
+  assert.deepStrictEqual(f.sf, [['Fabrication', 'Assembler des pièces', 101, 1], ['Fabrication', 'Vérifier la qualité', 102, 0]]);
+  assert.deepStrictEqual(f.cert, [['CAP ébéniste', 301]]); assert.deepStrictEqual(f.sv, [['Normes et procédés', 'Essences de bois', 302, 0]]);
+  assert.deepStrictEqual(f.se, [['Être rigoureux', 201]]); assert.deepStrictEqual(f.ctx, [['Lieux', 'Atelier', 401]]);
+  assert.deepStrictEqual(Object.keys(r.files).sort(), ['current.js', 'v7/Z9901.js', 'v7/index.js', 'v7/version.js']);
+  assert.ok(r.files['v7/version.js'].includes('(mars 2027)'));
+  // The generated files load as scripts and give back the same profile.
+  const box = {}; vm.runInNewContext(r.files['v7/Z9901.js'], { OJA_ROME: { add: (c, o) => { box[c] = o; } } }); assert.deepStrictEqual(JSON.parse(JSON.stringify(box.Z9901)), f);
+  // Fails loudly when counts do not match what was expected.
+  assert.throws(() => B.buildRome({ zip: zipOK, expect: { fiches: 1923 } }), /expected 1923 profiles, found 1/);
+  const appsBad = appsJ.concat([{ code_ogr: 12, libelle: 'Titre orphelin', classification: 'SYNONYME', peu_usite: 'N', code_rome_parent: 'Z9901' }]);
+  const zipBad = makeZip([['version.txt', Buffer.from('Numero de version : 7\nDate de publication : 05/03/2027', 'utf8')], ['unix_fiche_emploi_metier_v407.json', cp(JSON.stringify(fichesJ))], ['unix_referentiel_appellation_v407.json', cp(JSON.stringify(appsBad))], ['unix_arborescence_principale_v407.json', cp(JSON.stringify(treeJ))]]);
+  assert.throws(() => B.buildRome({ zip: zipBad }), /could not be placed under a profile/);
+  assert.throws(() => B.readZip(Buffer.from('not a zip')), /Not a zip file/);
+  console.log('ROME tests passed: data v' + cur.version + ', ' + idx.fiches.length + ' profiles, ' + idx.titles.length + ' job titles; M1501 has ' + m1501.sf.length + ' savoir-faire (' + m1501.sf.filter(x => x[3]).length + ' core).');
+})().catch(e => { console.error(e); process.exit(1); });
+
 console.log('All tests passed. Example: ' + exT.filter(t => t.critical).length + ' critical tasks, ' + Core.compResults(ex).filter(k => k.critical).length + ' critical competencies, final ' + exL.finalTasks.length + ' tasks / ' + exL.finalComps.length + ' competencies; dropped', exL.droppedTasks, exL.droppedComps);

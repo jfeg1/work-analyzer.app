@@ -8,12 +8,15 @@ It runs entirely in your web browser. There is nothing to install, no account, a
 
 L'outil existe en français et en anglais. Choisissez la langue avec les boutons **FR / EN** en haut à droite, ou ajoutez `?lang=fr` à l'adresse (par exemple `https://jfeg1.github.io/work-analyzer.app/?lang=fr`). L'outil retient votre choix.
 
+- **Partir d'une fiche ROME** : à l'étape 1, cherchez un intitulé de poste ou un code (par exemple « assistant RH » ou « M1501 ») parmi les 14 330 appellations des 1 923 fiches du ROME de France Travail. La fiche affiche sa définition, l'accès au métier et les contextes de travail. Vous choisissez ensuite les éléments à importer : les savoir-faire « cœur de métier » sont cochés et deviennent des tâches (ou des compétences, au choix) ; les savoirs, les certifications et les savoir-être restent décochés. Chaque élément importé garde son code ROME et reste signalé « À préciser » tant que vous ne l'avez pas réécrit : une fiche décrit un métier en général, pas votre poste. L'accès au métier n'est jamais importé comme une exigence.
 - **Exemple** : en français, **Charger l'exemple** ouvre une analyse complète du poste d'assistant ou assistante RH, construite à partir de la fiche ROME M1501 de France Travail (version 62, octobre 2026, Licence Ouverte).
 - **Langue du projet** : chaque projet garde la langue dans laquelle il a été créé. Un fichier envoyé à un référent métier s'ouvre dans cette langue.
 - **Échelles** : les échelles de notation sont traduites à partir de l'OPM. « Distinguishing value » devient « Capacité à départager ».
 - **Période d'essai** : l'échelle « Besoin à l'embauche » est accompagnée d'un repère sur la période d'essai (art. L. 1221-19 à L. 1221-22 du Code du travail).
 - **Exports** : en français, le CSV utilise le point-virgule et la virgule décimale, pour s'ouvrir correctement dans Excel.
 - **Fiches de travail Word** : la version française des fiches de `worksheets/` est à venir.
+
+**Source ROME.** Les données viennent de France Travail, *Répertoire opérationnel des métiers et des emplois* (ROME 4.0, version 62, octobre 2026), réutilisées sous la Licence Ouverte (Etalab). Le rapport et le CSV portent cette mention dès qu'un projet utilise le ROME.
 
 **Données personnelles (RGPD).** L'outil n'envoie rien : les noms des référents et leurs notes restent sur votre ordinateur et dans les fichiers que vous enregistrez. L'employeur qui conserve ces fichiers en est responsable (durée de conservation, accès).
 
@@ -74,13 +77,25 @@ The handbook's federal-specific steps (selective and quality ranking factor form
 
 ## Privacy
 
-Everything happens in your browser. The app makes no network requests and has no analytics. Project files and rater files are plain JSON that you choose where to save and whom to send to. Rater names and ratings are personal data: whoever keeps the project files is responsible for how long they are kept and who can see them.
+Everything happens in your browser. The app sends nothing anywhere and has no analytics. The only files it loads are its own ROME data files (`data/rome/`), from the same place as `index.html`, and only when you open the ROME panel. Project files and rater files are plain JSON that you choose where to save and whom to send to. Rater names and ratings are personal data: whoever keeps the project files is responsible for how long they are kept and who can see them.
 
 ## Development
 
 The whole app is one file, `index.html`, with no dependencies and no build step. The calculation logic sits between the `CORE-START` and `CORE-END` markers, the worked examples between `EXAMPLE-START` and `EXAMPLE-END`, and all interface text (English and French) between `I18N-START` and `I18N-END`. Project files are at version 2 (they record the project's `lang`; tasks and competencies may carry an optional `origin` and `kind`); version 1 files open without loss.
 
-To do: French versions of the Word worksheets; importing items from the ROME (France Travail). Run the tests with:
+### ROME data
+
+The ROME (France Travail's reference of occupations) is loaded from `data/rome/`: `current.js` names the version in use, and `v<N>/` holds `version.js` (dates, licence, attribution), `index.js` (all job titles, for the search) and one small file per profile (`M1501.js` …). Each is a plain script (`OJA_ROME.add(...)`), so the app can load it with a `<script>` tag both from a web server and from a file opened on the disk. Projects record the ROME version of every imported item.
+
+France Travail publishes a new ROME version about twice a year. To update:
+
+```
+node tools/build-rome.mjs
+```
+
+The script (Node 18+, no dependencies; it uses `curl` to download) fetches the open data (`RefRomeJson.zip` from `api.francetravail.fr`, and the "Arborescence principale" spreadsheet from data.gouv.fr, used to place the rarely used job titles under their profile), decodes it (the JSON files are Windows-1252, not UTF-8), writes `data/rome/v<N>/` and points `current.js` to it. It checks the counts (profiles against `version.txt`, every job title placed under a profile) and stops with an error rather than writing partial data. To build from files you downloaded yourself: `node tools/build-rome.mjs --zip RefRomeJson.zip --arbo arboprincipale.xlsx`. Keep the previous `v<N>` folder while older projects may still be opened, then run the tests, check the French example, and commit.
+
+To do: French versions of the Word worksheets. Run the tests with:
 
 ```
 node tests/test.js
@@ -100,4 +115,4 @@ This tool supports good practice; it is not legal advice. Employment law differs
 
 ## License
 
-MIT. See [LICENSE](LICENSE). The worksheets in `worksheets/` are adapted from a public-domain U.S. Government work. The French example uses ROME 4.0 data from France Travail (version 62, October 2026), reused under the Licence Ouverte.
+MIT. See [LICENSE](LICENSE). The worksheets in `worksheets/` are adapted from a public-domain U.S. Government work. The ROME data in `data/rome/` and the French example come from France Travail, ROME 4.0 (version 62, October 2026), reused under the Licence Ouverte / Open Licence (Etalab).
