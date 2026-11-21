@@ -14,7 +14,7 @@ L'outil existe en français et en anglais. Choisissez la langue avec les boutons
 - **Échelles** : les échelles de notation sont traduites à partir de l'OPM. « Distinguishing value » devient « Capacité à départager ».
 - **Période d'essai** : l'échelle « Besoin à l'embauche » est accompagnée d'un repère sur la période d'essai (art. L. 1221-19 à L. 1221-22 du Code du travail).
 - **Exports** : en français, le CSV utilise le point-virgule et la virgule décimale, pour s'ouvrir correctement dans Excel.
-- **Fiches de travail Word** : quatre fiches en français, à imprimer, sont dans [`worksheets/fr/`](worksheets/fr) : tâches, compétences, liens entre tâches et compétences, et échelles de notation (référence). Chaque référent métier les remplit seul ; vous saisissez ensuite les notes dans l'outil. Les trois autres fiches anglaises (réalisations, grilles de notation) relèvent de la procédure fédérale américaine et ne sont pas traduites.
+- **Fiches de travail** : quatre fiches en français, à imprimer, sont dans [`worksheets/fr/`](worksheets/fr), au format Word (`.docx`) et OpenDocument (`.odt`, pour LibreOffice) : tâches, compétences, liens entre tâches et compétences, et échelles de notation (référence). Chaque référent métier les remplit seul ; vous saisissez ensuite les notes dans l'outil. Les trois autres fiches anglaises (réalisations, grilles de notation) relèvent de la procédure fédérale américaine et ne sont pas traduites.
 
 **Source ROME.** Les données viennent de France Travail, *Répertoire opérationnel des métiers et des emplois* (ROME 4.0, version 62, octobre 2026), réutilisées sous la Licence Ouverte (Etalab). Le rapport et le CSV portent cette mention dès qu'un projet utilise le ROME.
 
@@ -48,7 +48,7 @@ Click **Load example** to see a completed analysis.
 Raters should score independently. Two options:
 
 - **Send files.** At the Raters step, save a file for each rater and email it. The rater opens the app, chooses **Open file**, rates, and sends back the file they save. Open that file in your project and the ratings are added. A rater file never contains another rater's scores. Round 1 covers tasks and competencies; round 2 covers linkage, once round 1 shows what is critical.
-- **Enter them yourself.** Collect ratings on paper (printable Word worksheets are in [`worksheets/`](worksheets)) or in an interview and type them in.
+- **Enter them yourself.** Collect ratings on paper (printable worksheets are in [`worksheets/`](worksheets), in Word `.docx` and OpenDocument `.odt` format for LibreOffice and other free office suites) or in an interview and type them in.
 
 ### Saving your work
 
