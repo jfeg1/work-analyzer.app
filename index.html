@@ -198,6 +198,9 @@ var Core = (function () {
   // the EU toolkit on gender-neutral job evaluation (EIGE). Levels run 0-5; knowledge runs 0-8. JobEval reads these.
   var EIGE_IDS = ["knowledge", "communication", "problemSolving", "planning", "physicalSkills", "people", "goods", "information", "financial", "mentalEffort", "emotionalEffort", "physicalEffort", "environment", "organisational"];
   var EIGE_MAX = { knowledge: 8 };
+  // The five subfactors of the skills factor. A competency may name one of them (competency.subfactor) as the subfactor
+  // it is evidence for; JobEval shows it there and compares its importance and links with the level agreed.
+  var SKILL_IDS = EIGE_IDS.slice(0, 5);
   function eigeResults(p) {
     return EIGE_IDS.map(function (id) {
       var v = p.raters.map(function (r) { return r.e && r.e[id]; }).filter(function (x) { return isNum(x) && x >= 0; }).sort(function (a, b) { return a - b; });
@@ -255,7 +258,11 @@ var Core = (function () {
       have[it.ogr] = true; added++;
       var origin = { type: 'rome', code: code, ogr: it.ogr, version: String(version), edited: false };
       if (it.as === 'task') p.tasks.push({ id: 't' + rid(), text: it.label, source: source || '', origin: origin });
-      else p.competencies.push({ id: 'c' + rid(), name: it.label, definition: '', source: source || '', kind: it.group === 'sf' ? 'savoir-faire' : it.kind, origin: origin });
+      else {
+        var kind = it.group === 'sf' ? 'savoir-faire' : it.kind;
+        // Savoirs and certifications are knowledge; the analyst places the others.
+        p.competencies.push({ id: 'c' + rid(), name: it.label, definition: '', source: source || '', kind: kind, subfactor: kind === 'savoir' || kind === 'certification' ? 'knowledge' : '', origin: origin });
+      }
     });
     return { added: added, skipped: skipped };
   }
@@ -286,7 +293,7 @@ var Core = (function () {
     return { list: hits.slice(0, max || 30), total: hits.length };
   }
   return { SCALES: SCALES, DEFAULT_CUTOFFS: DEFAULT_CUTOFFS, VERSION: VERSION, rid: rid, blank: blank, normalize: normalize, mean: mean, taskResults: taskResults,
-    compResults: compResults, linkSets: linkSets, linkResults: linkResults, raterPacket: raterPacket, raterResponse: raterResponse, mergeResponse: mergeResponse, EIGE_IDS: EIGE_IDS, EIGE_MAX: EIGE_MAX, eigeResults: eigeResults,
+    compResults: compResults, linkSets: linkSets, linkResults: linkResults, raterPacket: raterPacket, raterResponse: raterResponse, mergeResponse: mergeResponse, EIGE_IDS: EIGE_IDS, EIGE_MAX: EIGE_MAX, SKILL_IDS: SKILL_IDS, eigeResults: eigeResults,
     fmtNum: fmtNum, fmtCut: fmtCut, slug: slug, toCSV: toCSV, needsReview: needsReview,
     fold: fold, romeItems: romeItems, importRome: importRome, romeUsed: romeUsed, romeVersion: romeVersion, romeSearch: romeSearch };
 })();
@@ -301,7 +308,7 @@ function buildExample(x) {
   p.job = x.job;
   var T = x.T, C = x.C, LINK = x.LINK;
   T.forEach(function (t, i) { var o = { id: 't' + (i + 1), text: t[0], source: t[1] }; if (t[4]) o.origin = t[4]; p.tasks.push(o); });
-  C.forEach(function (c, i) { var o = { id: 'c' + (i + 1), name: c[0], definition: c[1], source: c[2] }; if (c[6]) o.kind = c[6]; if (c[7]) o.origin = c[7]; p.competencies.push(o); });
+  C.forEach(function (c, i) { var o = { id: 'c' + (i + 1), name: c[0], definition: c[1], source: c[2] }; if (c[6]) o.kind = c[6]; if (c[7]) o.origin = c[7]; if (x.S && x.S[i]) o.subfactor = x.S[i]; p.competencies.push(o); });
   function cl(x) { return Math.max(1, Math.min(5, x)); }
   x.raters.forEach(function (who, r) {
     var R = { id: 'r' + (r + 1), name: who[0], title: who[1], t: {}, c: {}, l: {} };
@@ -336,7 +343,9 @@ function exampleEn() {
       ['Mathematical Reasoning', 'Solves practical problems by choosing appropriately from a variety of mathematical techniques.', 'Job experts', 2, 1, 2], ['Personnel and Human Resources', 'Knowledge of HR concepts, practices and rules, such as recruitment, pay and employee relations.', 'Job experts', 4, 3, 4]],
     LINK: { '1|4': 5, '1|3': 4, '2|1': 5, '4|1': 4, '4|5': 5, '4|2': 4, '6|4': 4, '6|5': 4, '6|7': 4, '6|2': 4, '7|3': 5, '7|4': 4, '8|1': 3, '9|4': 5, '9|3': 4, '9|5': 3, '11|1': 3, '12|1': 4, '12|2': 4, '12|5': 3 },
     raters: [['Job holder A', 'HR Assistant'], ['Job holder B', 'HR Assistant'], ['Line manager', 'HR Manager']],
-    E: [4, 3, 3, 2, 1, 1, 1, 3, 1, 2, 3, 1, 1, 1], });
+    E: [4, 3, 3, 2, 1, 1, 1, 3, 1, 2, 3, 1, 1, 1],
+    // Skills subfactor of each competency (Core.SKILL_IDS).
+    S: ['communication', 'communication', 'communication', 'communication', 'problemSolving', 'problemSolving', 'communication', 'knowledge', 'problemSolving', 'knowledge'], });
 }
 // French example built from ROME 4.0 fiche M1501 (version 62, October 2026; France Travail, Licence Ouverte).
 // Items keep their ROME origin. Task 11 is deliberately left in the ROME's wording, so the report flags it.
@@ -376,6 +385,8 @@ function exampleFr() {
     LINK: { '1|4': 5, '1|6': 4, '2|1': 5, '2|2': 4, '2|5': 4, '2|6': 4, '3|2': 5, '3|1': 4, '3|6': 5, '3|7': 4, '4|3': 5, '4|6': 5, '4|4': 4, '4|7': 4, '5|8': 5, '5|1': 4, '5|5': 4,
       '6|1': 4, '6|3': 4, '6|7': 3, '7|7': 4, '7|8': 4, '7|9': 4, '11|1': 4, '12|1': 4, '12|6': 4, '12|7': 4 },
     raters: [['Titulaire A', 'Assistante RH'], ['Titulaire B', 'Assistant RH'], ['Responsable', 'Responsable RH']],
+    // Skills subfactor of each competency (Core.SKILL_IDS). Rigour is left out: it is effort, not a skill.
+    S: ['knowledge', 'knowledge', 'knowledge', 'knowledge', 'communication', '', 'planning', 'communication', 'communication', 'problemSolving', 'knowledge'],
     E: [4, 3, 3, 2, 1, 1, 1, 3, 1, 2, 3, 1, 1, 1],
     decisions: {
       c1: { assess: true, use: 'Ranking factor', note: 'Exercice en situation : un cas d’absence et son effet sur la paie.' },
@@ -445,7 +456,8 @@ var I18N = (function () {
     romeShort: 'To make specific', romeFlag: 'To make specific: wording copied unchanged from ROME',
     compsTitle: '3. Competencies',
     compsLead: 'List the knowledge, skills, abilities and other characteristics a person needs to do the job successfully. Give each a short definition so every rater reads it the same way.',
-    colComp: 'Competency', colDef: 'Definition', colKind: 'Type', ariaComp: 'Competency {n}', ariaCompDef: 'Definition of competency {n}', ariaCompSource: 'Source of competency {n}', ariaCompKind: 'Type of competency {n}', removeComp: 'Remove competency',
+    colComp: 'Competency', colDef: 'Definition', colKind: 'Type', ariaComp: 'Competency {n}', ariaCompDef: 'Definition of competency {n}', ariaCompSource: 'Source of competency {n}', ariaCompKind: 'Type of competency {n}', colSkill: 'Skills subfactor', ariaCompSkill: 'Skills subfactor of competency {n}',
+    skillHint: 'Skills subfactor: which of the five skills subfactors of the EU job evaluation toolkit the competency is evidence for. JobEval shows the competency, its importance and its linked tasks under that subfactor. Leave it blank when none fits, for example a personal quality such as rigour, which is effort rather than a skill.', removeComp: 'Remove competency',
     kinds: [['', '–'], ['savoir', 'Knowledge'], ['savoir-faire', 'Skill'], ['savoir-etre', 'Personal quality'], ['certification', 'Certification'], ['autre', 'Other']],
     addComp: '+ Add competency', nextRaters: 'Next: raters',
     ratersTitle: '4. Raters',
@@ -486,7 +498,7 @@ var I18N = (function () {
     sign1: 'Job analyst signature and date', sign2: 'Approving manager signature and date',
     csvJob: 'Job', csvOrg: 'Organization', csvTasks: 'TASKS', csvComps: 'COMPETENCIES', csvLink: 'LINKAGE (average ratings)', csvTask: 'Task',
     csvTaskHead: ['No', 'Task', 'Source', 'Raters', 'Importance (avg)', 'Frequency (avg)', 'Removed as not performed', 'Rare but important', 'Critical', 'In final list'],
-    csvCompHead: ['No', 'Competency', 'Definition', 'Source', 'Raters', 'Importance (avg)', 'Need at entry (avg)', 'Distinguishing value (avg)', 'Critical', 'In final list', 'Can be assessed', 'Use in selection', 'Notes'],
+    csvCompHead: ['No', 'Competency', 'Definition', 'Source', 'Raters', 'Importance (avg)', 'Need at entry (avg)', 'Distinguishing value (avg)', 'Critical', 'In final list', 'Can be assessed', 'Use in selection', 'Notes', 'Skills subfactor'],
     yes: 'Yes', no: 'No', kept: 'Kept', notKept: 'Not kept',
     cancel: 'Cancel', yesContinue: 'Yes, continue', copy: 'Copy', close: 'Close', copied: 'Copied', copyManual: 'Select the text and copy it manually',
     previewNoDownload: 'This preview cannot download files. Copy the text below and save it as <b>{name}</b>, or use the downloaded version of the app.',
@@ -576,7 +588,8 @@ var I18N = (function () {
     romeShort: 'À préciser', romeFlag: 'À préciser : formulation reprise telle quelle du ROME',
     compsTitle: '3. Compétences',
     compsLead: 'Listez les savoirs, savoir-faire, savoir-être et autres caractéristiques nécessaires pour bien tenir le poste. Donnez à chacun une courte définition, pour que tous les référents la comprennent de la même façon.',
-    colComp: 'Compétence', colDef: 'Définition', colKind: 'Type', ariaComp: 'Compétence {n}', ariaCompDef: 'Définition de la compétence {n}', ariaCompSource: 'Source de la compétence {n}', ariaCompKind: 'Type de la compétence {n}', removeComp: 'Supprimer la compétence',
+    colComp: 'Compétence', colDef: 'Définition', colKind: 'Type', ariaComp: 'Compétence {n}', ariaCompDef: 'Définition de la compétence {n}', ariaCompSource: 'Source de la compétence {n}', ariaCompKind: 'Type de la compétence {n}', colSkill: 'Sous-critère (compétences)', ariaCompSkill: 'Sous-critère de la compétence {n}',
+    skillHint: 'Sous-critère : celui des cinq sous-critères du facteur « compétences » de la boîte à outils européenne de cotation des emplois dont la compétence est une preuve. JobEval affiche la compétence, son importance et ses tâches liées sous ce sous-critère. Laissez vide si aucun ne convient, par exemple pour une qualité personnelle comme la rigueur, qui relève de l’effort et non des compétences.', removeComp: 'Supprimer la compétence',
     kinds: [['', '–'], ['savoir', 'Savoir'], ['savoir-faire', 'Savoir-faire'], ['savoir-etre', 'Savoir-être'], ['certification', 'Certification'], ['autre', 'Autre']],
     addComp: '+ Ajouter une compétence', nextRaters: 'Suivant : référents métier',
     ratersTitle: '4. Référents métier',
@@ -617,7 +630,7 @@ var I18N = (function () {
     sign1: 'Signature et date de l’analyste', sign2: 'Signature et date de la personne qui valide',
     csvJob: 'Poste', csvOrg: 'Organisation', csvTasks: 'TÂCHES', csvComps: 'COMPÉTENCES', csvLink: 'LIENS (moyennes)', csvTask: 'Tâche',
     csvTaskHead: ['N°', 'Tâche', 'Source', 'Référents', 'Importance (moy.)', 'Fréquence (moy.)', 'Supprimée car non réalisée', 'Rare mais importante', 'Critique', 'Dans la liste finale'],
-    csvCompHead: ['N°', 'Compétence', 'Définition', 'Source', 'Référents', 'Importance (moy.)', 'Besoin à l’embauche (moy.)', 'Capacité à départager (moy.)', 'Critique', 'Dans la liste finale', 'Évaluable', 'Usage dans le recrutement', 'Notes'],
+    csvCompHead: ['N°', 'Compétence', 'Définition', 'Source', 'Référents', 'Importance (moy.)', 'Besoin à l’embauche (moy.)', 'Capacité à départager (moy.)', 'Critique', 'Dans la liste finale', 'Évaluable', 'Usage dans le recrutement', 'Notes', 'Sous-critère (compétences)'],
     yes: 'Oui', no: 'Non', kept: 'Conservée', notKept: 'Non conservée',
     cancel: 'Annuler', yesContinue: 'Oui, continuer', copy: 'Copier', close: 'Fermer', copied: 'Copié', copyManual: 'Sélectionnez le texte et copiez-le à la main',
     previewNoDownload: 'Cet aperçu ne permet pas de télécharger de fichiers. Copiez le texte ci-dessous et enregistrez-le sous le nom <b>{name}</b>, ou utilisez la version téléchargée de l’outil.',
@@ -706,6 +719,12 @@ if (typeof document !== 'undefined') (function () {
   function slug(s) { return Core.slug(s, t('fnDefault')); }
   function cuts() { var c = p.cutoffs, o = {}; Object.keys(c).forEach(function (k) { o[k] = fc(c[k]); }); return o; }
   function romeBadge(item) { return Core.needsReview(item) ? ' <span class="badge b-warn" title="' + esc(t('romeFlag')) + '">' + esc(t('romeFlag')) + '</span>' : ''; }
+  // Skills subfactor of a competency, named in the interface language.
+  function skillLabel(id) { var m = t('eige').filter(function (x) { return x.id === id; })[0]; return m && id ? m.name : ''; }
+  function skillSelect(k, i) {
+    return '<select data-path="competencies.' + i + '.subfactor" aria-label="' + esc(t('ariaCompSkill', { n: i + 1 })) + '" title="' + esc(skillLabel(k.subfactor)) + '"><option value="">–</option>' +
+      Core.SKILL_IDS.map(function (id) { return '<option value="' + id + '"' + (k.subfactor === id ? ' selected' : '') + '>' + esc(skillLabel(id)) + '</option>'; }).join('') + '</select>';
+  }
   function kindLabel(k) { var m = t('kinds').filter(function (x) { return x[0] === k; })[0]; return m && k ? m[1] : ''; }
   // A rater file is kept apart from the analyst's own project, so opening one never overwrites it.
   function store() { try { localStorage.setItem(p.raterMode ? RKEY : KEY, JSON.stringify(p)); if (!p.raterMode) localStorage.removeItem(RKEY); } catch (e) {} }
@@ -924,9 +943,9 @@ if (typeof document !== 'undefined') (function () {
     },
     competencies: function () {
       return '<h1>' + t('compsTitle') + '</h1><p class="lead">' + t('compsLead') + '</p>' +
-        '<div class="scroll"><table><tr><th class="num">' + t('colNo') + '</th><th style="width:22%">' + t('colComp') + '</th><th>' + t('colDef') + '</th><th style="width:13%">' + t('colKind') + '</th><th style="width:17%">' + t('colSource') + '</th><th class="no-print" style="width:40px"></th></tr>' +
-        p.competencies.map(function (k, i) { return '<tr><td class="num">' + (i + 1) + '</td><td><input type="text" data-path="competencies.' + i + '.name" value="' + esc(k.name) + '" aria-label="' + esc(t('ariaComp', { n: i + 1 })) + '">' + (Core.needsReview(k) ? '<span class="badge b-warn" title="' + esc(t('romeFlag')) + '">' + esc(t('romeShort')) + '</span>' : '') + '</td><td><textarea rows="2" data-path="competencies.' + i + '.definition" aria-label="' + esc(t('ariaCompDef', { n: i + 1 })) + '"' + (k.origin && k.origin.type === 'rome' ? ' placeholder="' + esc(t('romeDefPh')) + '"' : '') + '>' + esc(k.definition) + '</textarea></td><td><select data-path="competencies.' + i + '.kind" aria-label="' + esc(t('ariaCompKind', { n: i + 1 })) + '">' + t('kinds').map(function (o) { return '<option value="' + o[0] + '"' + ((k.kind || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></td><td><input type="text" list="sources2" data-path="competencies.' + i + '.source" value="' + esc(k.source) + '" aria-label="' + esc(t('ariaCompSource', { n: i + 1 })) + '"></td><td class="no-print"><button class="del" data-act="delComp" data-i="' + i + '" title="' + esc(t('removeComp')) + '">✕</button></td></tr>'; }).join('') +
-        '</table></div>' + sourceList('sources2') +
+        '<div class="scroll"><table><tr><th class="num">' + t('colNo') + '</th><th style="width:22%">' + t('colComp') + '</th><th>' + t('colDef') + '</th><th style="width:11%">' + t('colKind') + '</th><th style="width:21%">' + t('colSkill') + '</th><th style="width:12%">' + t('colSource') + '</th><th class="no-print" style="width:40px"></th></tr>' +
+        p.competencies.map(function (k, i) { return '<tr><td class="num">' + (i + 1) + '</td><td><input type="text" data-path="competencies.' + i + '.name" value="' + esc(k.name) + '" aria-label="' + esc(t('ariaComp', { n: i + 1 })) + '">' + (Core.needsReview(k) ? '<span class="badge b-warn" title="' + esc(t('romeFlag')) + '">' + esc(t('romeShort')) + '</span>' : '') + '</td><td><textarea rows="2" data-path="competencies.' + i + '.definition" aria-label="' + esc(t('ariaCompDef', { n: i + 1 })) + '"' + (k.origin && k.origin.type === 'rome' ? ' placeholder="' + esc(t('romeDefPh')) + '"' : '') + '>' + esc(k.definition) + '</textarea></td><td><select data-path="competencies.' + i + '.kind" aria-label="' + esc(t('ariaCompKind', { n: i + 1 })) + '">' + t('kinds').map(function (o) { return '<option value="' + o[0] + '"' + ((k.kind || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></td><td>' + skillSelect(k, i) + '</td><td><input type="text" list="sources2" data-path="competencies.' + i + '.source" value="' + esc(k.source) + '" aria-label="' + esc(t('ariaCompSource', { n: i + 1 })) + '"></td><td class="no-print"><button class="del" data-act="delComp" data-i="' + i + '" title="' + esc(t('removeComp')) + '">✕</button></td></tr>'; }).join('') +
+        '</table></div><p class="hint">' + t('skillHint') + '</p>' + sourceList('sources2') +
         '<div class="row" style="margin-top:10px"><button data-act="addComp">' + t('addComp') + '</button><button class="primary" data-view="raters">' + t('nextRaters') + '</button></div>';
     },
     raters: function () {
@@ -993,7 +1012,7 @@ if (typeof document !== 'undefined') (function () {
       html += '<h2>' + t('hFinalTasks') + '</h2><table><tr><th class="num">' + t('colNo') + '</th><th>' + t('colTask') + '</th><th>' + t('colSource') + '</th><th class="c">' + sc('taskImp').label + '</th><th class="c">' + sc('taskFreq').label + '</th><th>' + t('colLinkedComps') + '</th></tr>' +
         finalT.map(function (id) { var x = byId(tr, id); return '<tr><td class="num">' + x.no + '</td><td>' + esc(x.text) + (x.kept ? ' <span class="hint">' + t('keptNote') + '</span>' : '') + romeBadge(byId(p.tasks, id)) + '</td><td>' + esc(x.source) + '</td><td class="c">' + fmt(x.imp) + '</td><td class="c">' + fmt(x.freq) + '</td><td>' + L.comps.filter(function (k) { return L.cells[id + '|' + k].linked; }).map(function (k) { return esc(byId(cr, k).name); }).join(', ') + '</td></tr>'; }).join('') + '</table>' +
         '<h2>' + t('hFinalComps') + '</h2><p class="hint no-print">' + t('decisionsHint') + '</p><table><tr><th class="num">' + t('colNo') + '</th><th>' + t('colComp') + '</th><th class="c">' + t('shortImp') + '</th><th class="c">' + t('shortEntry') + '</th><th class="c">' + t('shortDV') + '</th><th>' + t('colLinkedTasks') + '</th><th class="c">' + t('colAssess') + '</th><th style="min-width:185px">' + t('colUse') + '</th><th>' + t('colNotes') + '</th></tr>' +
-        finalC.map(function (k) { var x = byId(cr, k), item = byId(p.competencies, k), d = p.decisions[k], kl = kindLabel(item.kind); return '<tr><td class="num">' + x.no + '</td><td><b>' + esc(x.name) + '</b>' + (kl ? '<span class="badge b-mute kind">' + esc(kl) + '</span>' : '') + romeBadge(item) + '<div class="hint">' + esc(x.definition) + '</div></td><td class="c">' + fmt(x.imp) + '</td><td class="c">' + fmt(x.entry) + '</td><td class="c">' + fmt(x.dv) + '</td><td>' + L.tasks.filter(function (id) { return L.cells[id + '|' + k].linked; }).map(function (id) { return 'T' + taskNo(id); }).join(', ') + '</td><td class="c"><input type="checkbox" data-path="decisions.' + k + '.assess" data-check="1"' + (d.assess ? ' checked' : '') + ' aria-label="' + esc(t('colAssess')) + '"></td><td><select data-path="decisions.' + k + '.use" aria-label="' + esc(t('colUse')) + '">' + t('uses').map(function (o) { return '<option value="' + o[0] + '"' + (d.use === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></td><td><textarea rows="2" data-path="decisions.' + k + '.note" aria-label="' + esc(t('colNotes')) + '">' + esc(d.note) + '</textarea></td></tr>'; }).join('') + '</table>' +
+        finalC.map(function (k) { var x = byId(cr, k), item = byId(p.competencies, k), d = p.decisions[k], kl = kindLabel(item.kind), sl = skillLabel(item.subfactor); return '<tr><td class="num">' + x.no + '</td><td><b>' + esc(x.name) + '</b>' + (kl ? '<span class="badge b-mute kind">' + esc(kl) + '</span>' : '') + (sl ? '<span class="badge b-mute kind" title="' + esc(t('colSkill')) + '">' + esc(sl) + '</span>' : '') + romeBadge(item) + '<div class="hint">' + esc(x.definition) + '</div></td><td class="c">' + fmt(x.imp) + '</td><td class="c">' + fmt(x.entry) + '</td><td class="c">' + fmt(x.dv) + '</td><td>' + L.tasks.filter(function (id) { return L.cells[id + '|' + k].linked; }).map(function (id) { return 'T' + taskNo(id); }).join(', ') + '</td><td class="c"><input type="checkbox" data-path="decisions.' + k + '.assess" data-check="1"' + (d.assess ? ' checked' : '') + ' aria-label="' + esc(t('colAssess')) + '"></td><td><select data-path="decisions.' + k + '.use" aria-label="' + esc(t('colUse')) + '">' + t('uses').map(function (o) { return '<option value="' + o[0] + '"' + (d.use === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></td><td><textarea rows="2" data-path="decisions.' + k + '.note" aria-label="' + esc(t('colNotes')) + '">' + esc(d.note) + '</textarea></td></tr>'; }).join('') + '</table>' +
         '<h2>' + t('hMatrix') + '</h2>' + linkTable(L);
       var setAside = tr.filter(function (x) { return finalT.indexOf(x.id) < 0; }), setAsideC = cr.filter(function (k) { return finalC.indexOf(k.id) < 0; });
       html += '<h2>' + t('hSetAside') + '</h2><table><tr><th>' + t('colItem') + '</th><th>' + t('colReason') + '</th></tr>' +
@@ -1023,7 +1042,7 @@ if (typeof document !== 'undefined') (function () {
     var L = Core.linkResults(p);
     Core.taskResults(p).forEach(function (x) { rows.push([x.no, x.text, x.source, x.n, fmt(x.imp), fmt(x.freq), yn(x.eliminated), x.rare ? (x.kept ? t('kept') : t('notKept')) : '', yn(x.critical), yn(L.finalTasks.indexOf(x.id) >= 0)]); });
     rows.push([], [t('csvComps')], t('csvCompHead'));
-    Core.compResults(p).forEach(function (k) { var d = p.decisions[k.id] || {}, fin = L.finalComps.indexOf(k.id) >= 0; rows.push([k.no, k.name, k.definition, k.source, k.n, fmt(k.imp), fmt(k.entry), fmt(k.dv), yn(k.critical), yn(fin), fin ? yn(d.assess) : '', fin ? useLabel(d.use) : '', fin ? d.note : '']); });
+    Core.compResults(p).forEach(function (k) { var d = p.decisions[k.id] || {}, fin = L.finalComps.indexOf(k.id) >= 0; rows.push([k.no, k.name, k.definition, k.source, k.n, fmt(k.imp), fmt(k.entry), fmt(k.dv), yn(k.critical), yn(fin), fin ? yn(d.assess) : '', fin ? useLabel(d.use) : '', fin ? d.note : '', skillLabel(byId(p.competencies, k.id).subfactor)]); });
     rows.push([], [t('csvLink')], [t('csvTask')].concat(L.comps.map(function (k) { return 'C' + compNo(k) + ' ' + byId(p.competencies, k).name; })));
     L.tasks.forEach(function (x) { rows.push(['T' + taskNo(x)].concat(L.comps.map(function (k) { return fmt(L.cells[x + '|' + k].avg); }))); });
     if (p.eige) { var E = t('eige'); rows.push([], [t('csvEige')], t('csvEigeHead')); Core.eigeResults(p).forEach(function (x, i) { rows.push([E[i].name, x.n, x.n ? fmt(x.median) : '', x.n ? x.min : '', x.n ? x.max : '']); }); }

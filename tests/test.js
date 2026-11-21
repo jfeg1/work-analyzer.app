@@ -198,6 +198,8 @@ const se0 = its.find(x => x.group === 'se'), cert0 = its.find(x => x.group === '
 ir = Core.importRome(ip, 'M1501', '62', core.concat([sfComp, se0, cert0]), 'Fiche ROME M1501');
 assert.deepStrictEqual(ir, { added: 3, skipped: 11 });
 assert.deepStrictEqual(ip.competencies.map(c => c.kind), ['savoir-faire', 'savoir-etre', 'certification']);
+// skills subfactor: certifications (and savoirs) default to knowledge; the analyst places the others
+assert.deepStrictEqual(ip.competencies.map(c => c.subfactor), ['', '', 'knowledge']);
 assert.ok(ip.competencies.every(c => c.definition === '' && Core.needsReview(c)));
 assert.strictEqual(new Set(ip.tasks.concat(ip.competencies).map(x => x.id)).size, 14);          // unique ids
 // Imported projects survive a save and reopen.
@@ -278,5 +280,8 @@ const zipOK = makeZip([
   });
   // the examples carry a full profile
   ['en', 'fr'].forEach(l => { const ex = exampleProject(l); assert.strictEqual(ex.eige, true); assert.ok(Core.eigeResults(ex).every(x => x.n === 3), l); });
+  // skills subfactors: the first five toolkit subfactors; every example competency names one or none
+  assert.deepStrictEqual(Core.SKILL_IDS, ['knowledge', 'communication', 'problemSolving', 'planning', 'physicalSkills']);
+  ['en', 'fr'].forEach(l => { const ex = exampleProject(l); assert.ok(ex.competencies.every(c => c.subfactor === undefined || c.subfactor === '' || Core.SKILL_IDS.includes(c.subfactor)), l); assert.strictEqual(ex.competencies.length, (l === 'fr' ? 11 : 10), l); assert.ok(ex.competencies.filter(c => c.subfactor).length >= 9, l); });
 }
 console.log('All tests passed. Example: ' + exT.filter(t => t.critical).length + ' critical tasks, ' + Core.compResults(ex).filter(k => k.critical).length + ' critical competencies, final ' + exL.finalTasks.length + ' tasks / ' + exL.finalComps.length + ' competencies; dropped', exL.droppedTasks, exL.droppedComps);
