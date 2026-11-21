@@ -16,6 +16,8 @@ L'outil existe en français et en anglais. Choisissez la langue avec les boutons
 - **Exports** : en français, le CSV utilise le point-virgule et la virgule décimale, pour s'ouvrir correctement dans Excel.
 - **Fiches de travail** : quatre fiches en français, à imprimer, sont dans [`worksheets/fr/`](worksheets/fr), au format Word (`.docx`) et OpenDocument (`.odt`, pour LibreOffice) : tâches, compétences, liens entre tâches et compétences, et échelles de notation (référence). Chaque référent métier les remplit seul ; vous saisissez ensuite les notes dans l'outil. Les trois autres fiches anglaises (réalisations, grilles de notation) relèvent de la procédure fédérale américaine et ne sont pas traduites.
 
+- **Cotation des emplois et JobEval** : à l’étape 1, cochez « Recueillir aussi un profil pour la cotation des emplois ». Les référents métier indiquent alors le niveau exigé par le poste sur les 14 sous-critères de la boîte à outils européenne (EIGE) pour une évaluation des emplois neutre du point de vue du genre, prévue par la directive (UE) 2023/970 sur la transparence des rémunérations. L’étape 6 affiche la médiane et l’écart des niveaux ; le bouton **Envoyer vers JobEval** de l’étape 8 transmet le poste à [JobEval](https://jfeg1.github.io/JobEval/) (interface en anglais). La traduction française des niveaux n’est pas officielle.
+
 **Source ROME.** Les données viennent de France Travail, *Répertoire opérationnel des métiers et des emplois* (ROME 4.0, version 62, octobre 2026), réutilisées sous la Licence Ouverte (Etalab). Le rapport et le CSV portent cette mention dès qu'un projet utilise le ROME.
 
 **Données personnelles (RGPD).** L'outil n'envoie rien : les noms des référents et leurs notes restent sur votre ordinateur et dans les fichiers que vous enregistrez. L'employeur qui conserve ces fichiers en est responsable (durée de conservation, accès).
@@ -49,6 +51,12 @@ Raters should score independently. Two options:
 
 - **Send files.** At the Raters step, save a file for each rater and email it. The rater opens the app, chooses **Open file**, rates, and sends back the file they save. Open that file in your project and the ratings are added. A rater file never contains another rater's scores. Round 1 covers tasks and competencies; round 2 covers linkage, once round 1 shows what is critical.
 - **Enter them yourself.** Collect ratings on paper (printable worksheets are in [`worksheets/`](worksheets), in Word `.docx` and OpenDocument `.odt` format for LibreOffice and other free office suites) or in an interview and type them in.
+
+### Job evaluation and pay (JobEval)
+
+At step 1, tick **Also collect a job evaluation profile**. Job experts then also give the level the job requires on the 14 subfactors of the EU toolkit on gender-neutral job evaluation (EIGE): the plan behind the four criteria in the EU Pay Transparency Directive (skills, responsibility, effort and working conditions). Step 6 shows the median and range of their levels, and flags subfactors where experts disagree by two levels or more.
+
+On the Report step, **Send to JobEval** passes the job to [JobEval](https://jfeg1.github.io/JobEval/), the companion tool that compares jobs, builds pay grades and produces the reports the Directive asks for. Online, the job opens straight in JobEval; offline, the project file is saved for you to import there. The levels are evidence for JobEval's evaluation committee, not the final levels.
 
 ### Saving your work
 

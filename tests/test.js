@@ -253,4 +253,30 @@ const zipOK = makeZip([
   console.log('ROME tests passed: data v' + cur.version + ', ' + idx.fiches.length + ' profiles, ' + idx.titles.length + ' job titles; M1501 has ' + m1501.sf.length + ' savoir-faire (' + m1501.sf.filter(x => x[3]).length + ' core).');
 })().catch(e => { console.error(e); process.exit(1); });
 
+// Job evaluation profile (EU toolkit subfactors) for JobEval
+{
+  const q = proj();
+  q.eige = true;
+  q.raters = [rater('r1'), rater('r2'), rater('r3')];
+  q.raters[0].e = { knowledge: 4, people: 1 }; q.raters[1].e = { knowledge: 5, people: 3 }; q.raters[2].e = { knowledge: 4 };
+  const e = Core.eigeResults(q);
+  assert.strictEqual(e.length, 14);
+  const k = e.find(x => x.id === 'knowledge'), pe = e.find(x => x.id === 'people'), g = e.find(x => x.id === 'goods');
+  assert.deepStrictEqual([k.n, k.median, k.min, k.max], [3, 4, 4, 5]);
+  assert.deepStrictEqual([pe.n, pe.median, pe.spread], [2, 2, 2]);
+  assert.strictEqual(g.n, 0); assert.strictEqual(g.median, null);
+  // a rater's round-1 file carries the profile back; older response files without it leave it untouched
+  const pk = Core.raterPacket(q, 'r3', 1); assert.strictEqual(pk.eige, true);
+  pk.raters[0].e = { knowledge: 6 };
+  assert.strictEqual(Core.mergeResponse(q, Core.raterResponse(pk)), null); assert.strictEqual(q.raters[2].e.knowledge, 6);
+  const old = Core.raterResponse(pk); delete old.rater.e;
+  Core.mergeResponse(q, old); assert.strictEqual(q.raters[2].e.knowledge, 6);
+  // both languages describe the same subfactors with the same number of levels (knowledge 0–8, others 0–5)
+  ['en', 'fr'].forEach(l => {
+    assert.deepStrictEqual(I18N[l].eige.map(x => x.id), Core.EIGE_IDS, l);
+    I18N[l].eige.forEach(x => assert.strictEqual(x.levels.length, x.id === 'knowledge' ? 9 : 6, l + ' ' + x.id));
+  });
+  // the examples carry a full profile
+  ['en', 'fr'].forEach(l => { const ex = exampleProject(l); assert.strictEqual(ex.eige, true); assert.ok(Core.eigeResults(ex).every(x => x.n === 3), l); });
+}
 console.log('All tests passed. Example: ' + exT.filter(t => t.critical).length + ' critical tasks, ' + Core.compResults(ex).filter(k => k.critical).length + ' critical competencies, final ' + exL.finalTasks.length + ' tasks / ' + exL.finalComps.length + ' competencies; dropped', exL.droppedTasks, exL.droppedComps);
