@@ -13,7 +13,7 @@ L'outil existe en français et en anglais. Choisissez la langue avec les boutons
 - **Échelles** : les échelles de notation sont traduites à partir de l'OPM. « Distinguishing value » devient « Capacité à départager ».
 - **Période d'essai** : l'échelle « Besoin à l'embauche » est accompagnée d'un repère sur la période d'essai (art. L. 1221-19 à L. 1221-22 du Code du travail).
 - **Exports** : en français, le CSV utilise le point-virgule et la virgule décimale, pour s'ouvrir correctement dans Excel.
-- **Fiches de travail Word** : la version française des fiches de `worksheets/` est à venir.
+- **Fiches de travail Word** : quatre fiches en français, à imprimer, sont dans [`worksheets/fr/`](worksheets/fr) : tâches, compétences, liens entre tâches et compétences, et échelles de notation (référence). Chaque référent métier les remplit seul ; vous saisissez ensuite les notes dans l'outil. Les trois autres fiches anglaises (réalisations, grilles de notation) relèvent de la procédure fédérale américaine et ne sont pas traduites.
 
 **Données personnelles (RGPD).** L'outil n'envoie rien : les noms des référents et leurs notes restent sur votre ordinateur et dans les fichiers que vous enregistrez. L'employeur qui conserve ces fichiers en est responsable (durée de conservation, accès).
 
@@ -80,7 +80,7 @@ Everything happens in your browser. The app makes no network requests and has no
 
 The whole app is one file, `index.html`, with no dependencies and no build step. The calculation logic sits between the `CORE-START` and `CORE-END` markers, the worked examples between `EXAMPLE-START` and `EXAMPLE-END`, and all interface text (English and French) between `I18N-START` and `I18N-END`. Project files are at version 2 (they record the project's `lang`; tasks and competencies may carry an optional `origin` and `kind`); version 1 files open without loss.
 
-To do: French versions of the Word worksheets; importing items from the ROME (France Travail). Run the tests with:
+French worksheets (tasks, competencies, linkage, scales reference) are in `worksheets/fr/`. To do: importing items from the ROME (France Travail), in progress in PR #3. Run the tests with:
 
 ```
 node tests/test.js
