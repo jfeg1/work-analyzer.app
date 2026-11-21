@@ -80,7 +80,7 @@ Everything happens in your browser. The app makes no network requests and has no
 
 The whole app is one file, `index.html`, with no dependencies and no build step. The calculation logic sits between the `CORE-START` and `CORE-END` markers, the worked examples between `EXAMPLE-START` and `EXAMPLE-END`, and all interface text (English and French) between `I18N-START` and `I18N-END`. Project files are at version 2 (they record the project's `lang`; tasks and competencies may carry an optional `origin` and `kind`); version 1 files open without loss.
 
-French worksheets (tasks, competencies, linkage, scales reference) are in `worksheets/fr/`. To do: importing items from the ROME (France Travail), in progress in PR #3. Run the tests with:
+To do: French versions of the Word worksheets; importing items from the ROME (France Travail). Run the tests with:
 
 ```
 node tests/test.js
