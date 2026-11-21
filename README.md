@@ -4,6 +4,19 @@ A free, open source tool that walks a small or medium-sized business through a s
 
 It runs entirely in your web browser. There is nothing to install, no account, and no server. Your data stays on your computer.
 
+## Utiliser l'outil en français
+
+L'outil existe en français et en anglais. Choisissez la langue avec les boutons **FR / EN** en haut à droite, ou ajoutez `?lang=fr` à l'adresse (par exemple `https://jfeg1.github.io/work-analyzer.app/?lang=fr`). L'outil retient votre choix.
+
+- **Exemple** : en français, **Charger l'exemple** ouvre une analyse complète du poste d'assistant ou assistante RH, construite à partir de la fiche ROME M1501 de France Travail (version 62, octobre 2026, Licence Ouverte).
+- **Langue du projet** : chaque projet garde la langue dans laquelle il a été créé. Un fichier envoyé à un référent métier s'ouvre dans cette langue.
+- **Échelles** : les échelles de notation sont traduites à partir de l'OPM. « Distinguishing value » devient « Capacité à départager ».
+- **Période d'essai** : l'échelle « Besoin à l'embauche » est accompagnée d'un repère sur la période d'essai (art. L. 1221-19 à L. 1221-22 du Code du travail).
+- **Exports** : en français, le CSV utilise le point-virgule et la virgule décimale, pour s'ouvrir correctement dans Excel.
+- **Fiches de travail Word** : la version française des fiches de `worksheets/` est à venir.
+
+**Données personnelles (RGPD).** L'outil n'envoie rien : les noms des référents et leurs notes restent sur votre ordinateur et dans les fichiers que vous enregistrez. L'employeur qui conserve ces fichiers en est responsable (durée de conservation, accès).
+
 ## Why job analysis
 
 A job analysis is the foundation for a job description, a job advert, a selection process and a defensible pay decision. Without one, requirements such as "significant experience" or "degree from a good school" are guesses. With one, every requirement can be traced back to real work.
@@ -61,11 +74,13 @@ The handbook's federal-specific steps (selective and quality ranking factor form
 
 ## Privacy
 
-Everything happens in your browser. The app makes no network requests and has no analytics. Project files and rater files are plain JSON that you choose where to save and whom to send to.
+Everything happens in your browser. The app makes no network requests and has no analytics. Project files and rater files are plain JSON that you choose where to save and whom to send to. Rater names and ratings are personal data: whoever keeps the project files is responsible for how long they are kept and who can see them.
 
 ## Development
 
-The whole app is one file, `index.html`, with no dependencies and no build step. The calculation logic sits between the `CORE-START` and `CORE-END` markers. Run the tests with:
+The whole app is one file, `index.html`, with no dependencies and no build step. The calculation logic sits between the `CORE-START` and `CORE-END` markers, the worked examples between `EXAMPLE-START` and `EXAMPLE-END`, and all interface text (English and French) between `I18N-START` and `I18N-END`. Project files are at version 2 (they record the project's `lang`; tasks and competencies may carry an optional `origin` and `kind`); version 1 files open without loss.
+
+To do: French versions of the Word worksheets; importing items from the ROME (France Travail). Run the tests with:
 
 ```
 node tests/test.js
@@ -85,4 +100,4 @@ This tool supports good practice; it is not legal advice. Employment law differs
 
 ## License
 
-MIT. See [LICENSE](LICENSE). The worksheets in `worksheets/` are adapted from a public-domain U.S. Government work.
+MIT. See [LICENSE](LICENSE). The worksheets in `worksheets/` are adapted from a public-domain U.S. Government work. The French example uses ROME 4.0 data from France Travail (version 62, October 2026), reused under the Licence Ouverte.
