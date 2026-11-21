@@ -14,7 +14,7 @@ L'outil existe en français et en anglais. Choisissez la langue avec les boutons
 - **Échelles** : les échelles de notation sont traduites à partir de l'OPM. « Distinguishing value » devient « Capacité à départager ».
 - **Période d'essai** : l'échelle « Besoin à l'embauche » est accompagnée d'un repère sur la période d'essai (art. L. 1221-19 à L. 1221-22 du Code du travail).
 - **Exports** : en français, le CSV utilise le point-virgule et la virgule décimale, pour s'ouvrir correctement dans Excel.
-- **Fiches de travail Word** : la version française des fiches de `worksheets/` est à venir.
+- **Fiches de travail Word** : quatre fiches en français, à imprimer, sont dans [`worksheets/fr/`](worksheets/fr) : tâches, compétences, liens entre tâches et compétences, et échelles de notation (référence). Chaque référent métier les remplit seul ; vous saisissez ensuite les notes dans l'outil. Les trois autres fiches anglaises (réalisations, grilles de notation) relèvent de la procédure fédérale américaine et ne sont pas traduites.
 
 **Source ROME.** Les données viennent de France Travail, *Répertoire opérationnel des métiers et des emplois* (ROME 4.0, version 62, octobre 2026), réutilisées sous la Licence Ouverte (Etalab). Le rapport et le CSV portent cette mention dès qu'un projet utilise le ROME.
 
