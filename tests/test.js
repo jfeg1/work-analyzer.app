@@ -4,6 +4,7 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const grab = (a, b) => html.split(a)[1].split(b)[0];
 const Core = new Function(grab('/*CORE-START*/', '/*CORE-END*/').replace("if (typeof module !== 'undefined') module.exports = Core;", '') + '; return Core;')();
 const exampleProject = new Function('Core', grab('/*EXAMPLE-START*/', '/*EXAMPLE-END*/') + '; return exampleProject;')(Core);
+const I18N = new Function('Core', grab('/*I18N-START*/', '/*I18N-END*/') + '; return I18N;')(Core);
 
 const rater = (id, t, c, l) => ({ id, name: id, t: t || {}, c: c || {}, l: l || {} });
 function proj() {
@@ -81,4 +82,62 @@ assert.ok(Core.mergeResponse(Core.blank(), Core.raterResponse(pk)));
 const ex = exampleProject(), exT = Core.taskResults(ex), exL = Core.linkResults(ex);
 assert.strictEqual(exT[9].eliminated, true); assert.strictEqual(exT[11].kept, true); assert.ok(exL.finalTasks.includes('t12'));
 assert.ok(exL.finalTasks.length >= 4 && exL.finalComps.length >= 3 && exL.rated === exL.total);
+// English example: unchanged by the French edition (same critical items and final lists as before)
+assert.deepStrictEqual(exT.filter(t => t.critical).map(t => t.id), ['t1', 't2', 't4', 't6', 't7', 't8', 't11', 't12']);
+assert.deepStrictEqual(Core.compResults(ex).filter(k => k.critical).map(k => k.id), ['c1', 'c2', 'c3', 'c4', 'c7']);
+assert.deepStrictEqual(exL.finalTasks, ['t1', 't2', 't4', 't6', 't7', 't8', 't12']); assert.deepStrictEqual(exL.finalComps, ['c1', 'c2', 'c3', 'c4', 'c7']);
+assert.strictEqual(ex.lang, 'en'); assert.strictEqual(ex.version, 2);
+
+// French example (ROME M1501): every teaching point holds
+const fx = exampleProject('fr'), fT = Core.taskResults(fx), fC = Core.compResults(fx), fL = Core.linkResults(fx);
+const ids = (a, f) => a.filter(f).map(x => x.id);
+assert.strictEqual(fx.lang, 'fr');
+assert.deepStrictEqual(ids(fT, t => t.critical), ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't11', 't12']);
+assert.strictEqual(fT[11].kept, true); assert.strictEqual(fT[11].rare, true);                      // t12 rare but important, kept
+assert.ok(fT[7].freq < 3 && !fT[7].critical && fT[8].freq < 3 && !fT[8].critical);              // t8, t9 below the frequency cutoff
+assert.deepStrictEqual(ids(fT, t => t.eliminated), ['t10']);                                      // copied from the old job ad, not performed
+assert.deepStrictEqual(ids(fC, k => k.critical), ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c10']);
+assert.strictEqual(fC[10].critical, false);                                                        // c11 diploma: not critical
+assert.deepStrictEqual(ids(fC, k => k.dv < 3), ['c4', 'c9', 'c10', 'c11']);                      // low capacity to discriminate
+assert.deepStrictEqual(fL.finalTasks, ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't11', 't12']);
+assert.deepStrictEqual(fL.finalComps, ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9']);
+assert.deepStrictEqual(fL.droppedComps, ['c10']);                                                 // sounds right, linked to no task
+assert.strictEqual(fL.rated, fL.total);
+assert.deepStrictEqual(fx.tasks.filter(Core.needsReview).map(t => t.id), ['t11']);               // left in the ROME's wording
+assert.deepStrictEqual(fx.tasks[10].origin, { type: 'rome', code: 'M1501', ogr: 482249, version: '62', edited: false });
+assert.strictEqual(fx.competencies[10].kind, 'certification');
+
+// v1 files open as v2 without losing anything, including fields this version does not use
+const v1 = { kind: 'oja-project', version: 1, id: 'abc', job: { title: 'X', org: 'Y', family: '', analyst: '', date: '2026-11-20', sources: 'S' },
+  tasks: [{ id: 't1', text: 'A', source: 'B', origin: { type: 'rome', code: 'M1501', ogr: 1, version: '62', edited: false } }], competencies: [{ id: 'c1', name: 'N', definition: 'D', source: '', kind: 'savoir' }],
+  raters: [{ id: 'r1', name: 'R', title: 'T', t: { t1: { imp: 4, freq: 3 } }, c: {}, l: {} }], cutoffs: { taskImp: 2.5 }, decisions: { c1: { assess: true, use: 'Ranking factor', note: 'n' } }, keepTasks: { t1: true }, seq: 4, custom: { keep: 'me' } };
+const n2 = Core.normalize(JSON.parse(JSON.stringify(v1)));
+assert.strictEqual(n2.version, 2); assert.strictEqual(n2.lang, 'en');
+['id', 'job', 'tasks', 'competencies', 'raters', 'decisions', 'keepTasks', 'seq', 'custom'].forEach(k => assert.deepStrictEqual(n2[k], v1[k], k));
+assert.strictEqual(n2.cutoffs.taskImp, 2.5); assert.strictEqual(n2.cutoffs.link, 3);
+assert.strictEqual(Core.normalize({ kind: 'oja-project', lang: 'fr' }).lang, 'fr');
+assert.strictEqual(Core.raterPacket(fx, 'r1', 1).lang, 'fr');                                    // rater files carry the project's language
+
+// file names without accents
+assert.strictEqual(Core.slug('Chargé de paie'), 'charge-de-paie');
+assert.strictEqual(Core.slug('Œuvre d’Éléonore & Cie'), 'oeuvre-d-eleonore-cie');
+assert.strictEqual(Core.slug('', 'analyse-des-emplois'), 'analyse-des-emplois');
+assert.strictEqual(Core.slug('HR Assistant (example)'), 'hr-assistant-example');
+
+// numbers and CSV
+assert.strictEqual(Core.fmtNum(3.25, 'fr'), '3,25'); assert.strictEqual(Core.fmtNum(3.25, 'en'), '3.25'); assert.strictEqual(Core.fmtNum(null, 'fr'), '–');
+assert.strictEqual(Core.fmtCut(2.5, 'fr'), '2,5');
+assert.strictEqual(Core.toCSV([['N°', 'Tâche', '3,25'], ['1', 'a;b', 'x']], 'fr'), 'N°;Tâche;3,25\r\n1;"a;b";x');
+assert.strictEqual(Core.toCSV([['No', 'Task', '3.25'], ['1', 'a,b', 'x']], 'en'), 'No,Task,3.25\r\n1,"a,b",x');
+
+// dictionaries: same keys in both languages; French scales and typography
+const ek = Object.keys(I18N.en).sort(), fk = Object.keys(I18N.fr).sort();
+assert.deepStrictEqual(ek.filter(k => !fk.includes(k)), []);
+assert.strictEqual(I18N.fr.scales.compDV.label, 'Capacité à départager');
+assert.deepStrictEqual(I18N.fr.scales.compDV.opts, ['Sans objet', 'Pas utile', 'Un peu utile', 'Utile', 'Très utile', 'Extrêmement utile']);
+assert.ok(I18N.fr.scales.compDV.q.endsWith('acceptable\u00a0?'));
+assert.ok(!/ [:;?!»]|« /.test(JSON.stringify(I18N.fr)));                                       // no breaking space before : ; ? ! or inside « »
+assert.ok(I18N.fr.entryNote.includes('L.\u00a01221-20') || I18N.fr.entryNote.includes('L. 1221-20'));
+assert.strictEqual(I18N.en.entryNote, '');
+
 console.log('All tests passed. Example: ' + exT.filter(t => t.critical).length + ' critical tasks, ' + Core.compResults(ex).filter(k => k.critical).length + ' critical competencies, final ' + exL.finalTasks.length + ' tasks / ' + exL.finalComps.length + ' competencies; dropped', exL.droppedTasks, exL.droppedComps);
