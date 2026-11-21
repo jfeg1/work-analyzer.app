@@ -95,7 +95,7 @@ node tools/build-rome.mjs
 
 The script (Node 18+, no dependencies; it uses `curl` to download) fetches the open data (`RefRomeJson.zip` from `api.francetravail.fr`, and the "Arborescence principale" spreadsheet from data.gouv.fr, used to place the rarely used job titles under their profile), decodes it (the JSON files are Windows-1252, not UTF-8), writes `data/rome/v<N>/` and points `current.js` to it. It checks the counts (profiles against `version.txt`, every job title placed under a profile) and stops with an error rather than writing partial data. To build from files you downloaded yourself: `node tools/build-rome.mjs --zip RefRomeJson.zip --arbo arboprincipale.xlsx`. Keep the previous `v<N>` folder while older projects may still be opened, then run the tests, check the French example, and commit.
 
-To do: French versions of the Word worksheets. Run the tests with:
+Run the tests with:
 
 ```
 node tests/test.js
